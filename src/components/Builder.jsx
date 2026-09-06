@@ -9,6 +9,7 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import ApiDocs from "../components/ApiDocs";
 import ApiTester from "../components/ApiTester";
 import generateMarkdownDocs from "../lib/generateMarkdownDocs";
+import { seedResource } from "../lib/smartFaker";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Skeleton from "./Skeleton";
@@ -49,9 +50,38 @@ export default function Builder({ initialData = null, projectId = null, initialU
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authReason, setAuthReason] = useState("login");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authSuccess, setAuthSuccess] = useState("");
+  const [authNeedsVerification, setAuthNeedsVerification] = useState(false);
+  const [resending, setResending] = useState(false);
   const [projects, setProjects] = useState([]);
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [verifiedAlert, setVerifiedAlert] = useState(null);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const verified = params.get('verified');
+      if (verified === 'success') {
+        setVerifiedAlert({
+          type: 'success',
+          message: 'Account is now verified, you can now sign in!'
+        });
+        setAuthMode('login');
+        setAuthSuccess('Account is now verified, you can now sign in!');
+        setShowAuthModal(true);
+      } else if (verified === 'already') {
+        setVerifiedAlert({
+          type: 'info',
+          message: 'Your email is already verified. You can sign in.'
+        });
+        setAuthMode('login');
+        setAuthSuccess('Your email is already verified. You can sign in.');
+        setShowAuthModal(true);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (projectId) {
@@ -60,21 +90,9 @@ export default function Builder({ initialData = null, projectId = null, initialU
   }, [projectId]);
 
   const initializeDb = () => {
-    const generateMockObject = (fields) => {
-      const obj = {};
-      fields.forEach(field => {
-        if (field.type === 'string') obj[field.name] = "string";
-        else if (field.type === 'number') obj[field.name] = 0;
-        else if (field.type === 'boolean') obj[field.name] = true;
-      });
-      return obj;
-    };
-
     const newDb = {};
     resources.forEach(res => {
-      newDb[res.name] = [
-        { id: crypto.randomUUID(), ...generateMockObject(res.fields) }
-      ];
+      newDb[res.name] = seedResource(res.name, res.fields, 3);
     });
     setMockDb(newDb);
   };
@@ -104,8 +122,8 @@ export default function Builder({ initialData = null, projectId = null, initialU
   }, []);
 
   useEffect(() => {
-    setGeneratedCode(generateExpress(config, resources));
-  }, [config, resources]);
+    setGeneratedCode(generateExpress(config, resources, mockDb));
+  }, [config, resources, mockDb]);
 
   const handleConfigChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -217,24 +235,40 @@ export default function Builder({ initialData = null, projectId = null, initialU
     e.preventDefault();
     setAuthLoading(true);
     setAuthError("");
+    setAuthSuccess("");
+    setAuthNeedsVerification(false);
     try {
+      const payload = { username: authUsername, password: authPassword };
+      if (authMode === 'register') payload.email = authEmail;
+
       const res = await fetch(`/api/auth/${authMode}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: authUsername, password: authPassword })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (res.ok) {
-        setUser(data.username);
-        setShowAuthModal(false);
-        setAuthUsername("");
-        setAuthPassword("");
-        fetchProjects();
-        if (authReason === "login" && !projectId) {
-          router.push("/dashboard");
+        if (data.needsVerification) {
+          // Registration succeeded but needs email verification
+          setAuthSuccess(data.message || "Check your email to verify your account.");
+          setAuthMode('login');
+          setAuthPassword("");
+          setAuthEmail("");
+        } else {
+          setUser(data.username);
+          setShowAuthModal(false);
+          setAuthUsername("");
+          setAuthPassword("");
+          setAuthEmail("");
+          setAuthSuccess("");
+          fetchProjects();
+          if (authReason === "login" && !projectId) {
+            router.push("/dashboard");
+          }
         }
       } else {
         setAuthError(data.error || "Authentication failed");
+        if (data.needsVerification) setAuthNeedsVerification(true);
       }
     } catch (e) {
       setAuthError("Network error");
@@ -500,6 +534,55 @@ export default function Builder({ initialData = null, projectId = null, initialU
 
   return (
     <>
+      {/* Verified Banner Alert */}
+      <AnimatePresence>
+        {verifiedAlert && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-5 left-1/2 -translate-x-1/2 z-[300] w-full max-w-lg px-4"
+          >
+            <div className="bg-emerald-950/90 border border-emerald-500/30 backdrop-blur-xl text-emerald-200 px-5 py-3.5 rounded-2xl shadow-[0_10px_30px_rgba(16,185,129,0.3)] flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0 text-emerald-400">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-white">Email Verified!</h4>
+                  <p className="text-xs text-emerald-200/90">{verifiedAlert.message}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {!user && (
+                  <button
+                    onClick={() => {
+                      setAuthReason("login");
+                      setAuthMode("login");
+                      setAuthSuccess("Account is now verified, you can now sign in!");
+                      setShowAuthModal(true);
+                    }}
+                    className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold rounded-xl transition-all shadow-md flex-shrink-0"
+                  >
+                    Sign In
+                  </button>
+                )}
+                <button
+                  onClick={() => setVerifiedAlert(null)}
+                  className="p-1 text-emerald-400 hover:text-white transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Auth Modal & Sign In Button */}
       <div className="absolute top-4 right-4 sm:top-8 sm:right-8 z-50">
         {user ? (
@@ -537,11 +620,56 @@ export default function Builder({ initialData = null, projectId = null, initialU
                 <label className="block text-xs font-medium text-neutral-400 mb-1.5">Username</label>
                 <input type="text" required value={authUsername} onChange={e => setAuthUsername(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all" />
               </div>
+              {authMode === 'register' && (
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5">Email</label>
+                  <input type="email" required value={authEmail} onChange={e => setAuthEmail(e.target.value)} placeholder="you@example.com" className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all placeholder-neutral-600" />
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-neutral-400 mb-1.5">Password</label>
                 <input type="password" required value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all" />
               </div>
-              {authError && <div className="text-red-400 text-xs font-medium bg-red-500/10 p-3 rounded-lg border border-red-500/20">{authError}</div>}
+              {authSuccess && <div className="text-green-400 text-xs font-medium bg-green-500/10 p-3 rounded-lg border border-green-500/20 flex items-center gap-2"><svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>{authSuccess}</div>}
+              {authError && (
+                <div className="text-red-400 text-xs font-medium bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+                  <p>{authError}</p>
+                  {authNeedsVerification && (
+                    <button
+                      type="button"
+                      disabled={resending}
+                      onClick={async () => {
+                        setResending(true);
+                        try {
+                          const res = await fetch('/api/auth/resend', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username: authUsername })
+                          });
+                          const data = await res.json();
+                          if (res.ok) {
+                            setAuthError('');
+                            setAuthNeedsVerification(false);
+                            setAuthSuccess(data.message || 'Verification email resent!');
+                          } else {
+                            setAuthError(data.error || 'Failed to resend');
+                          }
+                        } catch (e) {
+                          setAuthError('Network error while resending');
+                        } finally {
+                          setResending(false);
+                        }
+                      }}
+                      className="mt-2 w-full py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-white rounded-lg text-xs font-semibold transition-all border border-red-500/20 hover:border-red-500/40 flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      {resending ? 'Sending...' : 'Resend Confirmation Email'}
+                    </button>
+                  )}
+                </div>
+              )}
               <button type="submit" disabled={authLoading} className="w-full py-3 mt-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-semibold transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] disabled:opacity-50">
                 {authLoading ? '...' : (authMode === 'login' ? 'Sign In' : 'Sign Up')}
               </button>
@@ -806,7 +934,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                 ) : (
                   resources.map((res, resIndex) => (
                     <motion.div 
-                      key={resIndex + res.name}
+                      key={res.id || `resource-${resIndex}`}
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ duration: 0.3 }}

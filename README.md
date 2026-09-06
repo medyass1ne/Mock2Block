@@ -11,6 +11,7 @@
   <img src="https://img.shields.io/badge/Tailwind_CSS-4-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white" alt="Tailwind CSS" />
   <img src="https://img.shields.io/badge/Deployed_on-Vercel-black?style=flat-square&logo=vercel" alt="Vercel" />
   <img src="https://img.shields.io/badge/AI-Groq_Llama_3-orange?style=flat-square" alt="Groq AI" />
+  <img src="https://img.shields.io/badge/Mailer-Nodemailer-0088cc?style=flat-square" alt="Nodemailer" />
 </p>
 
 <br />
@@ -39,6 +40,9 @@
 ### 🎨 Visual API Builder
 Design your mock API resources and fields through an intuitive drag-and-drop-style interface. Instantly generates a **complete, runnable `server.js`** file with full `GET`, `POST`, `PUT`, and `DELETE` endpoints, in-memory data seeding, configurable CORS, and simulated latency — ready to download and run with a single `node server.js`.
 
+### 🧠 Smart Data Seeding
+No more generic "string" or "0" placeholders. Powered by **`@faker-js/faker`**, Mock2Block automatically populates your newly created endpoints with realistic, context-aware dummy data. It intelligently matches field names to generate real-sounding emails, full names, dynamic product prices, avatar image URLs, and recent timestamps instantly.
+
 ### 🤖 AI-Powered Generation
 Type a plain English description like *"A blog platform with posts, comments, and authors"* and let **Groq's Llama 3** instantly generate your entire API schema. Integrated with server-side **rate limiting** (3 requests/day per user via Vercel KV) to prevent abuse.
 
@@ -51,8 +55,8 @@ Test your generated endpoints directly inside the UI — like a **mini Postman**
 ### ☁️ Cloud Deployments
 Deploy your mock API to the cloud with a single click. Your endpoints go live at a unique URL (e.g., `https://your-domain.com/projects/{id}/test/api/todos`) powered by **Next.js dynamic Catch-All Route Handlers** and **Vercel KV** for persistence — no Express server needed.
 
-### 🔐 Custom Authentication
-A complete JWT authentication system built **from scratch** — no NextAuth, no Clerk, no Auth.js. User registration and login with **bcryptjs** password hashing, HTTP-only JWT cookies, and server-side token verification across all protected routes. Users get a personal **dashboard** to manage their deployed projects.
+### 🔐 Secure Authentication & Email Verification
+A highly resilient, custom-built JWT authentication system developed **from scratch** backed by Vercel KV. Registration requires users to verify their accounts via real emails dispatched by **Nodemailer**, effectively preventing spam accounts and protecting the AI generation rate limits. It features `bcryptjs` password hashing, HTTP-only JWT cookies, and server-side token verification across all protected routes. 
 
 ### 💎 Premium Dark Glassmorphism UI
 A meticulously crafted interface featuring translucent glass panels, dynamic spotlight effects, **Framer Motion** animations (staggered fade-ups, scale transitions, layout animations), skeleton loading states with `animate-pulse`, and **server-side auth extraction** to eliminate hydration layout shift.
@@ -64,10 +68,10 @@ A meticulously crafted interface featuring translucent glass panels, dynamic spo
 | Layer | Technologies |
 |---|---|
 | **Frontend** | Next.js 15 (App Router), Pure JavaScript (no TypeScript), Tailwind CSS 4, Framer Motion |
-| **Backend / Serverless** | Next.js Route Handlers, Custom JWT Auth (`jsonwebtoken`, `bcryptjs`) |
+| **Backend / Serverless** | Next.js Route Handlers, Custom JWT Auth (`jsonwebtoken`, `bcryptjs`), Nodemailer |
 | **Database** | Vercel KV (Upstash Redis) |
-| **AI** | Groq API (Llama 3), Server-side rate limiting |
-| **File Processing** | `pdfjs-dist` (client-side PDF text extraction) |
+| **AI & Parsing** | Groq API (Llama 3), Server-side rate limiting, `pdfjs-dist` (PDF text extraction) |
+| **Data Generation**| `@faker-js/faker` |
 | **Deployment** | Vercel |
 
 ---
@@ -85,6 +89,7 @@ A meticulously crafted interface featuring translucent glass panels, dynamic spo
 - **Node.js** 18+ installed on your machine
 - A **Vercel KV** (Upstash Redis) database
 - A **Groq API** key for AI generation
+- An **SMTP Server** (e.g., Gmail App Password, Resend, SendGrid) for email verification
 
 ### Installation
 
@@ -120,6 +125,11 @@ Create a `.env.local` file in the project root with the following variables:
 | `KV_URL` | Full Redis connection URL | `rediss://default:...@host:6379` |
 | `JWT_SECRET` | Secret key for signing JWT tokens (use a strong random string) | `your-super-secret-key-here` |
 | `GROQ_API_KEY` | API key from [Groq Console](https://console.groq.com) | `gsk_...` |
+| `SMTP_HOST` | SMTP server host for the Nodemailer verification loop | `smtp.gmail.com` |
+| `SMTP_PORT` | SMTP server port | `587` |
+| `SMTP_USER` | SMTP username or email address | `your-email@gmail.com` |
+| `SMTP_PASS` | SMTP password or App Password | `your-app-password` |
+| `NEXT_PUBLIC_BASE_URL` | Base URL used to construct the verification links | `http://localhost:3000` |
 
 ---
 
@@ -135,15 +145,16 @@ Mock2Block leverages the **Next.js App Router** to eliminate the need for a pers
 │  │ Visual       │  │ AI Generator │  │ API Tester │ │
 │  │ Builder UI   │  │ (Groq/PDF)   │  │ (Sandbox)  │ │
 │  └──────┬───────┘  └──────┬───────┘  └────────────┘ │
-└─────────┼─────────────────┼─────────────────────────┘
-          │                 │
-          ▼                 ▼
+│         │                 │                 │       │
+└─────────┼─────────────────┼─────────────────┼───────┘
+          │                 │                 │
+          ▼                 ▼                 ▼
 ┌─────────────────────────────────────────────────────┐
 │              Next.js Route Handlers                 │
 │                                                     │
-│  /api/deploy          → Save to Vercel KV           │
+│  /api/deploy          → Serialize to Vercel KV      │
 │  /api/generate        → Groq AI + Rate Limiting     │
-│  /api/auth/[action]   → JWT Register/Login/Logout   │
+│  /api/auth/[action]   → JWT Register/Login/Verify   │
 │  /api/projects        → List user's saved projects  │
 │                                                     │
 │  /projects/[id]/test/api/[...slug]                  │
@@ -162,7 +173,7 @@ Mock2Block leverages the **Next.js App Router** to eliminate the need for a pers
               └─────────────────┘
 ```
 
-**The key insight:** When a user deploys their mock API, the config and seed data are serialized and stored in Vercel KV. The **`[...slug]` catch-all Route Handler** then intercepts any incoming HTTP request to that project's URL, parses the method and path, and returns the appropriate CRUD response — all serverlessly, with zero infrastructure to manage.
+**The key insight:** When a user deploys their mock API, the config and seed data are serialized and stored in **Vercel KV**. The **`[...slug]` catch-all Route Handler** intercepts any incoming HTTP request to that project's URL, dynamically parses the method and path, and returns the appropriate context-aware CRUD response — operating completely serverlessly with unparalleled performance and zero persistent infrastructure to manage.
 
 ---
 

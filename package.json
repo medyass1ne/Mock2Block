@@ -9,11 +9,13 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@faker-js/faker": "^10.6.0",
     "@vercel/kv": "^3.0.0",
     "bcryptjs": "^3.0.3",
     "framer-motion": "^13.2.0",
     "jsonwebtoken": "^9.0.3",
     "next": "16.3.4",
+    "nodemailer": "^10.0.0",
     "ogl": "^1.0.11",
     "pdfjs-dist": "^6.3.289",
     "react": "19.2.8",

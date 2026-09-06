@@ -1,4 +1,6 @@
-export default function generateExpress(config, resources) {
+import { seedResource } from './smartFaker';
+
+export default function generateExpress(config, resources, mockDb = null) {
   const { port = 5000, cors = true, delay = 0 } = config;
 
   let code = `const express = require('express');\n`;
@@ -21,18 +23,24 @@ export default function generateExpress(config, resources) {
     code += `  setTimeout(next, ${delay});\n`;
     code += `});\n`;
   }
+
   code += `\n// In-memory Data Stores\n`;
   resources.forEach(res => {
-    let dummyObject = 'id: crypto.randomUUID(),\n    ';
-    res.fields.forEach(f => {
-      let val = '""';
-      if (f.type === 'string') val = '"Sample String"';
-      else if (f.type === 'number') val = '42';
-      else if (f.type === 'boolean') val = 'true';
-      dummyObject += `${f.name}: ${val},\n    `;
+    const items = (mockDb && mockDb[res.name] && mockDb[res.name].length > 0)
+      ? mockDb[res.name]
+      : seedResource(res.name, res.fields, 3);
+
+    const formattedObjects = items.map(item => {
+      const fieldLines = Object.entries(item).map(([key, value]) => {
+        if (key === 'id') {
+          return `id: crypto.randomUUID()`;
+        }
+        return `${key}: ${JSON.stringify(value)}`;
+      });
+      return `  {\n    ${fieldLines.join(',\n    ')}\n  }`;
     });
 
-    code += `const ${res.name} = [\n  {\n    ${dummyObject.trim()}\n  }\n];\n\n`;
+    code += `const ${res.name} = [\n${formattedObjects.join(',\n')}\n];\n\n`;
   });
 
   code += `// CRUD Endpoints\n`;
