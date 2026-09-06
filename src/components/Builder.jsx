@@ -916,7 +916,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
             </section>
 
             {/* Presets */}
-            <section className="flex flex-wrap items-center justify-between gap-4 bg-white/[0.02] p-5 rounded-2xl border border-white/5">
+            <section className="flex flex-col flex-wrap justify-between gap-4 bg-white/[0.02] p-5 rounded-2xl border border-white/5">
               <div className="flex flex-wrap items-center justify-between width-[100% gap-3 ml-auto">
                 <Link href="/discover" className="cursor-pointer block">
                   <SpecularButton size="sm" baseColor="#e11d48" className="text-sm whitespace-nowrap rounded-xl !bg-rose-600/20 !border-rose-500/30 hover:!bg-rose-600/30 text-rose-300" autoAnimate>
