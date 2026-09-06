@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import generateExpress from "../lib/generateExpress";
 import SpotlightCard from "../components/SpotlightCard";
 import SpecularButton from "../components/SpecularButton";
@@ -21,6 +21,39 @@ import DotField from "./DotField";
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 }
+
+const VirtualEndpoint = ({ children }) => {
+  const containerRef = useRef(null);
+  const [isVisible, setIsVisible] = useState(true);
+  const [height, setHeight] = useState(200);
+
+  useEffect(() => {
+    const currentRef = containerRef.current;
+    if (!currentRef) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+        } else {
+          // Lock the exact height before unmounting children to preserve scroll position
+          setHeight(currentRef.getBoundingClientRect().height || 200);
+          setIsVisible(false);
+        }
+      },
+      { rootMargin: "0px 0px" } // Strictly unrender when out of view
+    );
+    
+    observer.observe(currentRef);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={containerRef} style={{ height: isVisible ? 'auto' : `${height}px` }} className="w-full">
+      {isVisible ? children : null}
+    </div>
+  );
+};
 
 export default function Builder({ initialData = null, projectId = null, initialUser = null }) {
   const router = useRouter();
@@ -129,7 +162,10 @@ export default function Builder({ initialData = null, projectId = null, initialU
   };
 
   useEffect(() => {
-    initializeDb();
+    const handler = setTimeout(() => {
+      initializeDb();
+    }, 300);
+    return () => clearTimeout(handler);
   }, [resources]);
 
   const fetchProjects = async () => {
@@ -153,8 +189,41 @@ export default function Builder({ initialData = null, projectId = null, initialU
   }, []);
 
   useEffect(() => {
-    setGeneratedCode(generateExpress(config, resources, mockDb));
+    const handler = setTimeout(() => {
+      setGeneratedCode(generateExpress(config, resources, mockDb));
+    }, 300);
+    return () => clearTimeout(handler);
   }, [config, resources, mockDb]);
+
+  useEffect(() => {
+    if (!projectId && !initialData) {
+      const savedConfig = localStorage.getItem("mock2block_config");
+      const savedResources = localStorage.getItem("mock2block_resources");
+      if (savedConfig) setConfig(JSON.parse(savedConfig));
+      if (savedResources) setResources(JSON.parse(savedResources));
+    }
+  }, [projectId, initialData]);
+
+  useEffect(() => {
+    // Only auto-save if we have something substantial and not initial empty load
+    if (!resources || resources.length === 0 || !mockDb) return;
+    
+    const handler = setTimeout(() => {
+      if (projectId) {
+        if (!user) return; // Only autosave if user is authenticated and owns it
+        fetch("/api/deploy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ config, resources, mockDb, projectId })
+        }).catch(err => console.error("Auto-save failed:", err));
+      } else {
+        localStorage.setItem("mock2block_config", JSON.stringify(config));
+        localStorage.setItem("mock2block_resources", JSON.stringify(resources));
+      }
+    }, 2000);
+    
+    return () => clearTimeout(handler);
+  }, [config, resources, mockDb, projectId, user]);
 
   const handleConfigChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -449,6 +518,23 @@ export default function Builder({ initialData = null, projectId = null, initialU
     }
   };
 
+  const MemoizedCodeBlock = useMemo(() => (
+    <SyntaxHighlighter
+      language="javascript"
+      style={vscDarkPlus}
+      className="custom-scrollbar"
+      customStyle={{
+        margin: 0,
+        padding: 0,
+        background: 'transparent',
+        fontSize: '0.875rem',
+        lineHeight: '1.625'
+      }}
+    >
+      {generatedCode}
+    </SyntaxHighlighter>
+  ), [generatedCode]);
+
   const renderCodePreview = (isOverlay = false) => (
     <div className={`flex-1 bg-[#09090b] border border-white/10 ${isOverlay ? 'rounded-2xl h-full' : 'rounded-3xl'} overflow-hidden shadow-2xl flex flex-col relative group transition-all duration-300`}>
       <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none"></div>
@@ -583,20 +669,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
       <div className="p-6 overflow-auto flex-1 custom-scrollbar relative z-10 text-sm">
         {activeTab === 'code' && (
           <motion.div layout>
-            <SyntaxHighlighter
-              language="javascript"
-              style={vscDarkPlus}
-              className="custom-scrollbar"
-              customStyle={{
-                margin: 0,
-                padding: 0,
-                background: 'transparent',
-                fontSize: '0.875rem',
-                lineHeight: '1.625'
-              }}
-            >
-              {generatedCode}
-            </SyntaxHighlighter>
+            {MemoizedCodeBlock}
           </motion.div>
         )}
         {activeTab === 'docs' && <ApiDocs resources={resources} config={config} />}
@@ -793,17 +866,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
           {renderCodePreview(true)}
         </div>
       )}
-      <div className="relative min-h-screen bg-[#050505] text-white font-sans selection:bg-indigo-500/30 overflow-hidden">
-        <div className="absolute inset-0 z-0 opacity-15 pointer-events-none mix-blend-screen">
-          <DotField
-            dotRadius={1.5}
-            dotSpacing={14}
-            bulgeStrength={67}
-            glowRadius={160}
-            sparkle={true}
-            waveAmplitude={0}
-          />
-        </div>
+      <div className="relative min-h-screen bg-[#050505] text-white font-sans selection:bg-indigo-500/30">
         <div className="relative z-10 p-4 sm:p-8 md:p-12">
           <div className="max-w-[1400px] mx-auto space-y-12">
         <header className="space-y-4">
@@ -1070,13 +1133,13 @@ export default function Builder({ initialData = null, projectId = null, initialU
                   </>
                 ) : (
                   resources.map((res, resIndex) => (
-                    <motion.div 
-                      key={res.id || `resource-${resIndex}`}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <SpotlightCard className="rounded-3xl border border-white/5 bg-white/[0.02] shadow-xl" spotlightColor="rgba(99, 102, 241, 0.1)">
+                    <VirtualEndpoint key={res.id || `resource-${resIndex}`}>
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <SpotlightCard className="rounded-3xl border border-white/5 bg-white/[0.02] shadow-xl" spotlightColor="rgba(99, 102, 241, 0.1)">
                         <div className="p-6 sm:p-8">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                         <div className="flex items-center gap-3 w-full sm:max-w-sm">
@@ -1225,9 +1288,11 @@ export default function Builder({ initialData = null, projectId = null, initialU
                         </button>
                       </div>
                     </div>
-                      </SpotlightCard>
-                    </motion.div>
-                )))}
+                        </SpotlightCard>
+                      </motion.div>
+                    </VirtualEndpoint>
+                  ))
+                )}
               </div>
             </section>
           </div>

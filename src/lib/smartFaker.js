@@ -43,7 +43,9 @@ export function generateSmartRecord(resourceName, fields) {
     }
 
     // Pattern matching based on field name
-    if (fieldName.includes('email')) {
+    if(fieldName.includes("id")) {
+      record[field.name] = faker.string.uuid();
+    } else if (fieldName.includes('email')) {
       record[field.name] = faker.internet.email();
     } else if (fieldName.includes('first') && fieldName.includes('name')) {
       record[field.name] = faker.person.firstName();
@@ -59,8 +61,6 @@ export function generateSmartRecord(resourceName, fields) {
       }
     } else if (fieldName.includes('password')) {
       record[field.name] = faker.internet.password();
-    } else if (fieldName.includes('avatar') || fieldName.includes('image') || fieldName.includes('picture') || fieldName.includes('photo')) {
-      record[field.name] = faker.image.avatar();
     } else if (fieldName.includes('price') || fieldName.includes('cost') || fieldName.includes('amount')) {
       record[field.name] = parseFloat(faker.commerce.price());
     } else if (fieldName.includes('title')) {
@@ -83,6 +83,10 @@ export function generateSmartRecord(resourceName, fields) {
       record[field.name] = faker.phone.number();
     } else if (fieldName.includes('company')) {
       record[field.name] = faker.company.name();
+    } else if (fieldName.includes('avatar') || fieldName.includes('picture') || fieldName.includes('photo')) {
+      record[field.name] = faker.image.avatar();
+    } else if(fieldName.includes('thumbnail') || fieldName.includes('image')) {
+      record[field.name] = faker.image.url();
     }
     // Fallbacks based on field type
     else {
