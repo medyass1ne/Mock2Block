@@ -18,6 +18,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { exportToOpenAPI, exportToPostman } from "../lib/exporters";
 import DotField from "./DotField";
 import { Zap, Lock, Globe, Search, Sparkles, Globe2 } from "lucide-react";
+import GradualBlur from "./GradualBlur";
 
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -717,6 +718,16 @@ export default function Builder({ initialData = null, projectId = null, initialU
           {tooltip.text}
         </div>
       )}
+      {/* Gradual Blur - Fixed Bottom */}
+      <GradualBlur
+        position="bottom"
+        height="3rem"
+        strength={1}
+        zIndex={50}
+        curve="ease-out"
+        divCount={4}
+        style={{ position: 'fixed', bottom: 0, left: 0, right: 0 }}
+      />
       {/* Verified Banner Alert */}
       <AnimatePresence>
         {verifiedAlert && (
