@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import generateExpress from "../lib/generateExpress";
 import SpotlightCard from "../components/SpotlightCard";
 import SpecularButton from "../components/SpecularButton";
@@ -12,7 +12,12 @@ import generateMarkdownDocs from "../lib/generateMarkdownDocs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Skeleton from "./Skeleton";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import * as pdfjsLib from 'pdfjs-dist';
+
+if (typeof window !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+}
 
 export default function Builder({ initialData = null, projectId = null, initialUser = null }) {
   const router = useRouter();
@@ -45,6 +50,8 @@ export default function Builder({ initialData = null, projectId = null, initialU
   const [authLoading, setAuthLoading] = useState(false);
   const [authReason, setAuthReason] = useState("login");
   const [projects, setProjects] = useState([]);
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (projectId) {
@@ -272,20 +279,51 @@ export default function Builder({ initialData = null, projectId = null, initialU
     }
   };
 
+  const extractPdfText = async (file) => {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      fullText += content.items.map(item => item.str).join(' ') + '\n';
+    }
+    return fullText;
+  };
+
   const generateFromAI = async () => {
     if (!user) {
       setAuthReason("generate");
       setShowAuthModal(true);
       return;
     }
-    if (!aiPrompt.trim()) return;
+    if (!aiPrompt.trim() && !uploadedFile) return;
     setIsGenerating(true);
     
     try {
+      let promptText = aiPrompt;
+
+      if (uploadedFile) {
+        let extractedText = '';
+        if (uploadedFile.type === 'application/pdf') {
+          extractedText = await extractPdfText(uploadedFile);
+        } else {
+          extractedText = await uploadedFile.text();
+        }
+        // Truncate to 25,000 chars to avoid blowing the context window
+        if (extractedText.length > 25000) {
+          extractedText = extractedText.substring(0, 25000) + '\n\n[...truncated]';
+        }
+        promptText = `Here is the API documentation. Generate the schema based on this:\n\n${extractedText}`;
+        if (aiPrompt.trim()) {
+          promptText = `${aiPrompt.trim()}\n\nHere is the uploaded documentation:\n\n${extractedText}`;
+        }
+      }
+
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: aiPrompt })
+        body: JSON.stringify({ prompt: promptText })
       });
       
       const data = await response.json();
@@ -302,6 +340,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
       if (data.resources && Array.isArray(data.resources)) {
         setResources(data.resources);
         setAiPrompt("");
+        setUploadedFile(null);
       } else {
         console.error("Invalid AI response format");
       }
@@ -657,29 +696,81 @@ export default function Builder({ initialData = null, projectId = null, initialU
                 Generate with AI
               </h2>
               
-              <div className="flex flex-col sm:flex-row gap-4 relative z-10">
-                <input
-                  type="text"
-                  value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
-                  placeholder="e.g. A blog with posts and comments containing author, body, and timestamp"
-                  className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 hover:border-white/20 transition-all shadow-inner placeholder-neutral-500"
-                  disabled={isGenerating}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') generateFromAI();
-                  }}
-                />
-                <button
-                  onClick={generateFromAI}
-                  disabled={isGenerating || (user && !aiPrompt.trim())}
-                  className={`px-6 py-3 rounded-xl font-medium transition-all shadow-lg border whitespace-nowrap ${
-                    isGenerating || (user && !aiPrompt.trim())
-                      ? 'bg-purple-500/10 text-purple-200/40 border-purple-500/10 cursor-not-allowed'
-                      : 'bg-purple-600 hover:bg-purple-500 text-white border-purple-400 hover:shadow-[0_0_20px_rgba(168,85,247,0.4)]'
-                  }`}
-                >
-                  {isGenerating ? "Generating..." : (!user ? "Sign in to generate" : "Generate API")}
-                </button>
+              <div className="flex flex-col gap-4 relative z-10">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <input
+                    type="text"
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    placeholder="e.g. A blog with posts and comments containing author, body, and timestamp"
+                    className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 hover:border-white/20 transition-all shadow-inner placeholder-neutral-500"
+                    disabled={isGenerating}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') generateFromAI();
+                    }}
+                  />
+                  <div className="flex gap-3">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".json,.md,.txt,.html,.pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) {
+                          setUploadedFile(e.target.files[0]);
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isGenerating}
+                      className="px-4 py-3 rounded-xl font-medium transition-all shadow-lg border whitespace-nowrap bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border-white/10 hover:border-white/20 hover:shadow-[0_0_15px_rgba(255,255,255,0.05)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      Upload Docs
+                    </button>
+                    <button
+                      onClick={generateFromAI}
+                      disabled={isGenerating || (user && !aiPrompt.trim() && !uploadedFile)}
+                      className={`px-6 py-3 rounded-xl font-medium transition-all shadow-lg border whitespace-nowrap ${
+                        isGenerating || (user && !aiPrompt.trim() && !uploadedFile)
+                          ? 'bg-purple-500/10 text-purple-200/40 border-purple-500/10 cursor-not-allowed'
+                          : 'bg-purple-600 hover:bg-purple-500 text-white border-purple-400 hover:shadow-[0_0_20px_rgba(168,85,247,0.4)]'
+                      }`}
+                    >
+                      {isGenerating ? "Generating..." : (!user ? "Sign in to generate" : "✨ Generate API")}
+                    </button>
+                  </div>
+                </div>
+
+                <AnimatePresence>
+                  {uploadedFile && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex items-center gap-3 bg-purple-500/10 border border-purple-500/20 rounded-xl px-4 py-2.5 w-fit"
+                    >
+                      <svg className="w-4 h-4 text-purple-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span className="text-sm text-purple-200 font-medium truncate max-w-[200px]">{uploadedFile.name}</span>
+                      <span className="text-xs text-purple-400/60">{(uploadedFile.size / 1024).toFixed(1)} KB</span>
+                      <button
+                        onClick={() => setUploadedFile(null)}
+                        className="text-purple-400/60 hover:text-purple-300 transition-colors ml-1 p-0.5 hover:bg-purple-500/10 rounded-md"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </section>
 
