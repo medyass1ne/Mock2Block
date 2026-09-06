@@ -9,9 +9,12 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@vercel/kv": "^3.0.0",
     "next": "16.3.4",
+    "ogl": "^1.0.11",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "react-syntax-highlighter": "^16.1.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
