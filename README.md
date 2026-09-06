@@ -41,6 +41,9 @@
 
 ## ✨ Features
 
+### 🗺️ Automated ER Diagram Visualizer
+Dynamically generates **Mermaid.js Entity-Relationship diagrams** based on your current API schema, directly in the browser. Features a live dark-themed SVG render, auto-detected foreign key relationships (e.g. `userId` → links `USERS` to `POSTS`), and a one-click "Copy Syntax" button for easy exporting to external documentation tools like Notion or Confluence.
+
 ### 🌪️ Chaos Mode (Error Injection)
 A global slider to artificially simulate server failures (`500`, `502`, `403`, `503`) based on a percentage threshold, allowing developers to test frontend resilience, network timeouts, and React error boundaries dynamically.
 
@@ -94,6 +97,7 @@ A meticulously crafted interface featuring translucent glass panels, dynamic spo
 | **Database** | Vercel KV (Upstash Redis) |
 | **AI & Parsing** | Groq API (Llama 3), Server-side rate limiting, `pdfjs-dist` (PDF text extraction) |
 | **Data Generation**| `@faker-js/faker` |
+| **Visualization** | `mermaid` (ER Diagram generation & SVG rendering) |
 | **Deployment** | Vercel |
 
 ---
@@ -198,6 +202,8 @@ Mock2Block leverages the **Next.js App Router** to eliminate the need for a pers
 ```
 
 **The key insight:** When a user deploys their mock API, the config and seed data are serialized and stored in **Vercel KV**. The **`[...slug]` catch-all Route Handler** intercepts incoming HTTP requests to that project's URL, seamlessly applying any requested **Chaos Mode middleware** or **Auth validation** upfront. It then dynamically parses query strings for **Auto-Pagination and Filtering** on standard GET routes, returning the appropriate context-aware CRUD response — operating completely serverlessly with unparalleled performance and zero persistent infrastructure to manage.
+
+The Builder UI right-hand panel exposes four tabs: **server.js** (the generated Express code), **API Docs** (auto-generated Markdown), **API Tester** (a live in-browser sandbox), and **Visualize** — which renders a live **Mermaid.js ER diagram** of your entire API schema instantly, giving developers an immediate architectural overview of the data model they are building.
 
 ---
 
