@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import * as pdfjsLib from 'pdfjs-dist';
 import { exportToOpenAPI, exportToPostman } from "../lib/exporters";
 import DotField from "./DotField";
+import { Zap, Lock, Globe, Search, Sparkles, Globe2 } from "lucide-react";
 
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -99,6 +100,19 @@ export default function Builder({ initialData = null, projectId = null, initialU
   const [publishTitle, setPublishTitle] = useState("");
   const [publishDesc, setPublishDesc] = useState("");
   const [publishLoading, setPublishLoading] = useState(false);
+  const [tooltip, setTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
+
+  const showTooltip = (e, text) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTooltip({
+      visible: true,
+      text,
+      x: rect.left + rect.width / 2,
+      y: rect.top - 8,
+    });
+  };
+
+  const hideTooltip = () => setTooltip(t => ({ ...t, visible: false }));
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -694,6 +708,15 @@ export default function Builder({ initialData = null, projectId = null, initialU
 
   return (
     <>
+      {/* Global Floating Tooltip Portal */}
+      {tooltip.visible && (
+        <div
+          className="fixed z-[9999] w-48 p-2 rounded-lg bg-[#0c1017]/95 backdrop-blur-xl border border-white/10 shadow-xl text-xs text-white/70 text-center pointer-events-none transition-opacity"
+          style={{ left: tooltip.x, top: tooltip.y, transform: 'translate(-50%, -100%)' }}
+        >
+          {tooltip.text}
+        </div>
+      )}
       {/* Verified Banner Alert */}
       <AnimatePresence>
         {verifiedAlert && (
@@ -848,7 +871,8 @@ export default function Builder({ initialData = null, projectId = null, initialU
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
             <h2 className="text-2xl font-bold text-white mb-6 relative z-10 flex items-center gap-2">
-              🌎 Publish Preset
+              <Globe className="w-6 h-6 text-cyan-400" />
+              Publish Preset
             </h2>
             <form onSubmit={handlePublishPreset} className="space-y-4 relative z-10">
               <div>
@@ -938,7 +962,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                 {!projectId && (
                   <div onClick={handleDeploy} className={`cursor-pointer ${isDeploying ? 'opacity-50 pointer-events-none' : ''}`}>
                     <SpecularButton size="sm" baseColor="#4f46e5" className="text-sm rounded-xl !bg-indigo-600/20 !border-indigo-500/30 hover:!bg-indigo-600/30" autoAnimate>
-                      {isDeploying ? "Deploying..." : "☁️ Deploy to Cloud"}
+                      {isDeploying ? "Deploying..." : <span className="flex items-center gap-2"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg> Deploy to Cloud</span>}
                     </SpecularButton>
                   </div>
                 )}
@@ -986,10 +1010,20 @@ export default function Builder({ initialData = null, projectId = null, initialU
               {/* Chaos Mode */}
               <div className="mt-6 pt-6 border-t border-white/10 relative z-10 grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="flex items-center sm:items-center">
-                  <label className="flex items-center cursor-pointer group w-full justify-between sm:justify-start gap-4">
-                    <span className="text-sm font-medium text-red-400 flex items-center gap-2">
-                      🔥 Chaos Mode
-                    </span>
+                  <label className="flex items-center cursor-pointer group/chaos w-full justify-between sm:justify-start gap-4">
+                    <div className="relative flex items-center gap-2 cursor-help w-fit"
+                      onMouseEnter={(e) => showTooltip(e, 'Randomly injects server errors (e.g., 500, 403) into your API responses based on the chosen percentage to help test frontend resilience.')}
+                      onMouseLeave={hideTooltip}
+                    >
+                      <span className="text-sm font-medium text-red-400 flex items-center gap-2">
+                      <Zap className="w-4 h-4" />
+                        Chaos Mode
+                      </span>
+                      <span className="flex items-center justify-center w-4 h-4 rounded-full border border-white/20 text-[10px] text-white/50 group-hover/chaos:text-white/90 group-hover/chaos:border-white/50 transition-colors">
+                        ?
+                      </span>
+                      <div className="hidden"></div>
+                    </div>
                     <div className="relative">
                       <input
                         type="checkbox"
@@ -998,7 +1032,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                         onChange={handleConfigChange}
                         className="sr-only"
                       />
-                      <div className={`block w-14 h-8 rounded-full transition-all duration-300 ${config.chaosMode ? 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'bg-black/50 border border-white/10 group-hover:border-white/20'}`}></div>
+                      <div className={`block w-14 h-8 rounded-full transition-all duration-300 ${config.chaosMode ? 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'bg-black/50 border border-white/10 group-hover/chaos:border-white/20'}`}></div>
                       <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform duration-300 shadow-sm ${config.chaosMode ? 'transform translate-x-6' : ''}`}></div>
                     </div>
                   </label>
@@ -1029,13 +1063,13 @@ export default function Builder({ initialData = null, projectId = null, initialU
               <div className="flex flex-wrap items-center justify-between width-[100% gap-3 ml-auto">
                 <Link href="/discover" className="cursor-pointer block">
                   <SpecularButton size="sm" baseColor="#e11d48" className="text-sm whitespace-nowrap rounded-xl !bg-rose-600/20 !border-rose-500/30 hover:!bg-rose-600/30 text-rose-300" autoAnimate>
-                    🔍 Discover Presets
+                    <span className="flex items-center gap-2"><Search className="w-4 h-4" /> Discover Presets</span>
                   </SpecularButton>
                 </Link>
                 {user && (
                   <div onClick={() => setShowPublishModal(true)} className="cursor-pointer">
                     <SpecularButton size="sm" baseColor="#0891b2" className="text-sm whitespace-nowrap rounded-xl !bg-cyan-600/20 !border-cyan-500/30 hover:!bg-cyan-600/30 text-cyan-300" autoAnimate>
-                      🌎 Publish as Preset
+                      <span className="flex items-center gap-2"><Globe2 className="w-4 h-4" /> Publish as Preset</span>
                     </SpecularButton>
                   </div>
                 )}
@@ -1115,7 +1149,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                           : 'bg-purple-600 hover:bg-purple-500 text-white border-purple-400 hover:shadow-[0_0_20px_rgba(168,85,247,0.4)]'
                       }`}
                     >
-                      {isGenerating ? "Generating..." : (!user ? "Sign in to generate" : "✨ Generate API")}
+                      {isGenerating ? "Generating..." : (!user ? "Sign in to generate" : <span className="flex items-center gap-2"><Sparkles className="w-4 h-4" /> Generate API</span>)}
                     </button>
                   </div>
                 </div>
@@ -1201,8 +1235,17 @@ export default function Builder({ initialData = null, projectId = null, initialU
                           />
                         </div>
                         <div className="flex items-center gap-4">
-                          <label className="flex items-center cursor-pointer group gap-2">
-                            <span className="text-xs font-medium text-amber-400/80">🔒 Require Auth</span>
+                          <label className="flex items-center cursor-pointer group/auth gap-2">
+                            <div className="relative flex items-center gap-2 cursor-help w-fit"
+                              onMouseEnter={(e) => showTooltip(e, 'Requires requests to this endpoint to include a valid Bearer token in the Authorization header.')}
+                              onMouseLeave={hideTooltip}
+                            >
+                              <span className="text-xs font-medium text-amber-400/80 flex items-center gap-1.5"><Lock className="w-3 h-3" /> Require Auth</span>
+                              <span className="flex items-center justify-center w-3.5 h-3.5 rounded-full border border-white/20 text-[9px] text-white/50 group-hover/auth:text-white/90 group-hover/auth:border-white/50 transition-colors">
+                                ?
+                              </span>
+                              <div className="hidden"></div>
+                            </div>
                             <div className="relative">
                               <input
                                 type="checkbox"
@@ -1210,7 +1253,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                                 onChange={(e) => updateResourceAuth(resIndex, e.target.checked)}
                                 className="sr-only"
                               />
-                              <div className={`block w-10 h-6 rounded-full transition-all duration-300 ${res.requireAuth ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'bg-black/50 border border-white/10'}`}></div>
+                              <div className={`block w-10 h-6 rounded-full transition-all duration-300 ${res.requireAuth ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'bg-black/50 border border-white/10 group-hover/auth:border-white/20'}`}></div>
                               <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ${res.requireAuth ? 'transform translate-x-4' : ''}`}></div>
                             </div>
                           </label>
@@ -1273,7 +1316,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                                     onChange={(e) => updateField(resIndex, fieldIndex, "mockType", e.target.value)}
                                     className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-pink-200 focus:outline-none focus:ring-1 focus:ring-pink-500/50 hover:bg-white/10 transition-all appearance-none cursor-pointer font-medium"
                                   >
-                                    <option value="auto" className="bg-neutral-900 text-white">✨ Auto-detect</option>
+                                    <option value="auto" className="bg-neutral-900 text-white">Auto-detect</option>
                                     {field.type === 'number' ? (
                                       <optgroup label="Numeric" className="bg-neutral-900 text-white/50">
                                         <option value="price" className="bg-neutral-900 text-white">Price</option>

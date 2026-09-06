@@ -14,6 +14,10 @@
   <img src="https://img.shields.io/badge/Mailer-Nodemailer-0088cc?style=flat-square" alt="Nodemailer" />
 </p>
 
+<p align="center">
+  <strong><a href="#">🔴 Live Demo (Coming Soon)</a></strong>
+</p>
+
 <br />
 
 > **Stop waiting for backend teams.** Mock2Block lets frontend developers visually scaffold an Express.js server with full CRUD endpoints, test them in an in-browser sandbox, or deploy them to a live cloud URL in seconds — all powered by AI generation, and zero backend setup.
@@ -37,29 +41,47 @@
 
 ## ✨ Features
 
+### 🌪️ Chaos Mode (Error Injection)
+A global slider to artificially simulate server failures (`500`, `502`, `403`, `503`) based on a percentage threshold, allowing developers to test frontend resilience, network timeouts, and React error boundaries dynamically.
+
+### 📄 Auto-Pagination & Filtering
+Built-in URL query parameter parsing (`?limit=10&page=2&isVerified=true`) that automatically slices and filters your in-memory database records on standard `GET` routes, perfectly simulating complex collection endpoints without writing any backend logic.
+
+### 🔒 Route-Level Auth Locks
+A toggle for individual endpoints to require `Bearer` token authorization. Easily simulate protected routes and validate `401 Unauthorized` redirects in your frontend application.
+
+### 🎯 Granular Mock Data Control
+While `@faker-js/faker` auto-detects most fields effortlessly, users can now use a "Mock Data Type" dropdown to manually override and force specific data formats (e.g., UUIDs, Image URLs, MongoDB IDs, Booleans).
+
+### 📤 One-Click Ecosystem Export
+Instantly export the entire project schema to a standard **OpenAPI 3.0 JSON** specification or a **Postman v2.1 Collection JSON**, allowing immediate integration with your existing API tooling workflows.
+
+### 🌎 Community Presets (Discover Page)
+Publish your meticulously crafted API schemas globally to Vercel KV, allowing other developers to browse the "Discover" page and instantly load community-built architectures (e.g., E-Commerce, SaaS, Social Media) into their scratchpad via URL parameters.
+
 ### 🎨 Visual API Builder
-Design your mock API resources and fields through an intuitive drag-and-drop-style interface. Instantly generates a **complete, runnable `server.js`** file with full `GET`, `POST`, `PUT`, and `DELETE` endpoints, in-memory data seeding, configurable CORS, and simulated latency — ready to download and run with a single `node server.js`.
+Design your mock API resources and fields through an intuitive interface. Instantly generates a **complete, runnable `server.js`** file with full `GET`, `POST`, `PUT`, and `DELETE` endpoints, in-memory data seeding, configurable CORS, and simulated latency.
 
 ### 🧠 Smart Data Seeding
-No more generic "string" or "0" placeholders. Powered by **`@faker-js/faker`**, Mock2Block automatically populates your newly created endpoints with realistic, context-aware dummy data. It intelligently matches field names to generate real-sounding emails, full names, dynamic product prices, avatar image URLs, and recent timestamps instantly.
+No more generic "string" or "0" placeholders. Powered by **`@faker-js/faker`**, Mock2Block intelligently matches field names to generate real-sounding emails, full names, dynamic product prices, avatar image URLs, and recent timestamps instantly.
 
 ### 🤖 AI-Powered Generation
 Type a plain English description like *"A blog platform with posts, comments, and authors"* and let **Groq's Llama 3** instantly generate your entire API schema. Integrated with server-side **rate limiting** (3 requests/day per user via Vercel KV) to prevent abuse.
 
 ### 📄 Smart File Uploads
-Upload existing API documentation in **`.json`**, **`.md`**, **`.txt`**, **`.html`**, or **`.pdf`** formats. PDFs are parsed **entirely client-side** using `pdfjs-dist` to extract text before sending to the AI — keeping payloads lean and protecting server limits. Extracted text is automatically **truncated at 25,000 characters** to fit within the LLM context window.
+Upload existing API documentation in **`.json`**, **`.md`**, **`.txt`**, **`.html`**, or **`.pdf`** formats. PDFs are parsed **entirely client-side** using `pdfjs-dist` to extract text before sending to the AI — keeping payloads lean and protecting server limits. 
 
 ### 🧪 In-Browser Virtual Sandbox
-Test your generated endpoints directly inside the UI — like a **mini Postman**. The virtual request dispatcher handles `GET`, `POST`, `PUT`, and `DELETE` operations against an in-memory store, with configurable **simulated network latency** and a one-click "Reset Data" button.
+Test your generated endpoints directly inside the UI — like a **mini Postman**. The virtual request dispatcher handles operations against an in-memory store, fully supporting Chaos Mode, Auth Locks, and Pagination right in your browser.
 
 ### ☁️ Cloud Deployments
-Deploy your mock API to the cloud with a single click. Your endpoints go live at a unique URL (e.g., `https://your-domain.com/projects/{id}/test/api/todos`) powered by **Next.js dynamic Catch-All Route Handlers** and **Vercel KV** for persistence — no Express server needed.
+Deploy your mock API to the cloud with a single click. Your endpoints go live at a unique URL powered by **Next.js dynamic Catch-All Route Handlers** and **Vercel KV** for persistence — no Express server needed.
 
 ### 🔐 Secure Authentication & Email Verification
-A highly resilient, custom-built JWT authentication system developed **from scratch** backed by Vercel KV. Registration requires users to verify their accounts via real emails dispatched by **Nodemailer**, effectively preventing spam accounts and protecting the AI generation rate limits. It features `bcryptjs` password hashing, HTTP-only JWT cookies, and server-side token verification across all protected routes. 
+A highly resilient, custom-built JWT authentication system developed **from scratch** backed by Vercel KV. Registration requires users to verify their accounts via real emails dispatched by **Nodemailer**, preventing spam accounts.
 
 ### 💎 Premium Dark Glassmorphism UI
-A meticulously crafted interface featuring translucent glass panels, dynamic spotlight effects, **Framer Motion** animations (staggered fade-ups, scale transitions, layout animations), skeleton loading states with `animate-pulse`, and **server-side auth extraction** to eliminate hydration layout shift.
+A meticulously crafted interface featuring translucent glass panels, dynamic spotlight effects, **Framer Motion** animations, skeleton loading states, and **server-side auth extraction** to eliminate hydration layout shift.
 
 ---
 
@@ -137,7 +159,7 @@ Create a `.env.local` file in the project root with the following variables:
 
 Mock2Block leverages the **Next.js App Router** to eliminate the need for a persistent Express backend in production:
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │                    Client (Browser)                 │
 │                                                     │
@@ -158,8 +180,10 @@ Mock2Block leverages the **Next.js App Router** to eliminate the need for a pers
 │  /api/projects        → List user's saved projects  │
 │                                                     │
 │  /projects/[id]/test/api/[...slug]                  │
-│    └─ Dynamic catch-all route that reads project    │
-│       data from KV and serves live CRUD responses   │
+│    └─ Dynamic catch-all route that parses Config,   │
+│       evaluates Chaos Mode, checks Auth headers,    │
+│       and slices Pagination before returning live   │
+│       CRUD responses directly from Vercel KV.       │
 └──────────────────────┬──────────────────────────────┘
                        │
                        ▼
@@ -173,7 +197,7 @@ Mock2Block leverages the **Next.js App Router** to eliminate the need for a pers
               └─────────────────┘
 ```
 
-**The key insight:** When a user deploys their mock API, the config and seed data are serialized and stored in **Vercel KV**. The **`[...slug]` catch-all Route Handler** intercepts any incoming HTTP request to that project's URL, dynamically parses the method and path, and returns the appropriate context-aware CRUD response — operating completely serverlessly with unparalleled performance and zero persistent infrastructure to manage.
+**The key insight:** When a user deploys their mock API, the config and seed data are serialized and stored in **Vercel KV**. The **`[...slug]` catch-all Route Handler** intercepts incoming HTTP requests to that project's URL, seamlessly applying any requested **Chaos Mode middleware** or **Auth validation** upfront. It then dynamically parses query strings for **Auto-Pagination and Filtering** on standard GET routes, returning the appropriate context-aware CRUD response — operating completely serverlessly with unparalleled performance and zero persistent infrastructure to manage.
 
 ---
 
