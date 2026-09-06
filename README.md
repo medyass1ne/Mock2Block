@@ -129,26 +129,26 @@ Mock2Block leverages the **Next.js App Router** to eliminate the need for a pers
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                    Client (Browser)                  │
-│                                                      │
+│                    Client (Browser)                 │
+│                                                     │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────┐ │
 │  │ Visual       │  │ AI Generator │  │ API Tester │ │
 │  │ Builder UI   │  │ (Groq/PDF)   │  │ (Sandbox)  │ │
 │  └──────┬───────┘  └──────┬───────┘  └────────────┘ │
-└─────────┼─────────────────┼──────────────────────────┘
+└─────────┼─────────────────┼─────────────────────────┘
           │                 │
           ▼                 ▼
 ┌─────────────────────────────────────────────────────┐
-│              Next.js Route Handlers                  │
-│                                                      │
-│  /api/deploy          → Save to Vercel KV            │
-│  /api/generate        → Groq AI + Rate Limiting      │
-│  /api/auth/[action]   → JWT Register/Login/Logout    │
-│  /api/projects        → List user's saved projects   │
-│                                                      │
-│  /projects/[id]/test/api/[...slug]                   │
-│    └─ Dynamic catch-all route that reads project     │
-│       data from KV and serves live CRUD responses    │
+│              Next.js Route Handlers                 │
+│                                                     │
+│  /api/deploy          → Save to Vercel KV           │
+│  /api/generate        → Groq AI + Rate Limiting     │
+│  /api/auth/[action]   → JWT Register/Login/Logout   │
+│  /api/projects        → List user's saved projects  │
+│                                                     │
+│  /projects/[id]/test/api/[...slug]                  │
+│    └─ Dynamic catch-all route that reads project    │
+│       data from KV and serves live CRUD responses   │
 └──────────────────────┬──────────────────────────────┘
                        │
                        ▼
