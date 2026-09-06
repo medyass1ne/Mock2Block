@@ -5,7 +5,43 @@ export function generateSmartRecord(resourceName, fields) {
 
   fields.forEach((field) => {
     const fieldName = field.name.toLowerCase();
+    const mockType = field.mockType || 'auto';
+
+    let matched = true;
+    switch(mockType) {
+      case 'uuid': record[field.name] = faker.string.uuid(); break;
+      case 'mongodb_id': record[field.name] = faker.database.mongodbObjectId(); break;
+      case 'first_name': record[field.name] = faker.person.firstName(); break;
+      case 'last_name': record[field.name] = faker.person.lastName(); break;
+      case 'full_name': record[field.name] = faker.person.fullName(); break;
+      case 'email': record[field.name] = faker.internet.email(); break;
+      case 'password': record[field.name] = faker.internet.password(); break;
+      case 'avatar': record[field.name] = faker.image.avatar(); break;
+      case 'words': record[field.name] = faker.lorem.words(3); break;
+      case 'paragraph': record[field.name] = faker.lorem.paragraph(); break;
+      case 'image_url': record[field.name] = faker.image.url(); break;
+      case 'url': record[field.name] = faker.internet.url(); break;
+      case 'product_name': record[field.name] = faker.commerce.productName(); break;
+      case 'price': record[field.name] = parseFloat(faker.commerce.price()); break;
+      case 'age': record[field.name] = faker.number.int({ min: 18, max: 80 }); break;
+      case 'amount': record[field.name] = parseFloat(faker.finance.amount()); break;
+      case 'company_name': record[field.name] = faker.company.name(); break;
+      case 'address': record[field.name] = faker.location.streetAddress(); break;
+      case 'city': record[field.name] = faker.location.city(); break;
+      case 'country': record[field.name] = faker.location.country(); break;
+      case 'phone': record[field.name] = faker.phone.number(); break;
+      case 'date_recent': record[field.name] = faker.date.recent().toISOString(); break;
+      case 'date_past': record[field.name] = faker.date.past().toISOString(); break;
+      default: matched = false; break;
+    }
+
+    if (matched) return;
     
+    if (field.type === 'boolean') {
+      record[field.name] = faker.datatype.boolean();
+      return;
+    }
+
     // Pattern matching based on field name
     if (fieldName.includes('email')) {
       record[field.name] = faker.internet.email();

@@ -68,6 +68,14 @@ export async function POST(req) {
     const parsedData = JSON.parse(content);
     
     if (parsedData.resources && Array.isArray(parsedData.resources)) {
+      parsedData.resources.forEach(res => {
+        if (res.fields && Array.isArray(res.fields)) {
+          res.fields.forEach(field => {
+            if (!field.mockType) field.mockType = 'auto';
+          });
+        }
+      });
+
       await kv.incr(rateLimitKey);
       await kv.expire(rateLimitKey, 86400);
 

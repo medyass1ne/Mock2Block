@@ -10,11 +10,13 @@ import ApiDocs from "../components/ApiDocs";
 import ApiTester from "../components/ApiTester";
 import generateMarkdownDocs from "../lib/generateMarkdownDocs";
 import { seedResource } from "../lib/smartFaker";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Skeleton from "./Skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 import * as pdfjsLib from 'pdfjs-dist';
+import { exportToOpenAPI, exportToPostman } from "../lib/exporters";
+import DotField from "./DotField";
 
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -59,9 +61,38 @@ export default function Builder({ initialData = null, projectId = null, initialU
   const [verifiedAlert, setVerifiedAlert] = useState(null);
   const fileInputRef = useRef(null);
 
+  const searchParams = useSearchParams();
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [publishTitle, setPublishTitle] = useState("");
+  const [publishDesc, setPublishDesc] = useState("");
+  const [publishLoading, setPublishLoading] = useState(false);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
+      
+      const presetId = params.get('preset');
+      if (presetId) {
+        fetch(`/api/presets/${presetId}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.preset) {
+              setConfig(data.preset.config || { port: 5000, delay: 0, cors: true });
+              setResources(data.preset.resources || []);
+              
+              const newUrl = window.location.pathname;
+              window.history.replaceState({}, '', newUrl);
+              
+              setVerifiedAlert({
+                type: 'success',
+                title: 'Preset Loaded!',
+                message: `Successfully loaded preset: ${data.preset.title}`
+              });
+            }
+          })
+          .catch(err => console.error("Failed to load preset:", err));
+      }
+
       const verified = params.get('verified');
       if (verified === 'success') {
         setVerifiedAlert({
@@ -185,7 +216,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
 
   const addField = (resIndex) => {
     const newResources = [...resources];
-    newResources[resIndex].fields.push({ name: "new_field", type: "string" });
+    newResources[resIndex].fields.push({ name: "new_field", type: "string", mockType: "auto" });
     setResources(newResources);
   };
 
@@ -198,6 +229,9 @@ export default function Builder({ initialData = null, projectId = null, initialU
   const updateField = (resIndex, fieldIndex, key, value) => {
     const newResources = [...resources];
     newResources[resIndex].fields[fieldIndex][key] = value;
+    if (key === 'type') {
+      newResources[resIndex].fields[fieldIndex].mockType = 'auto';
+    }
     setResources(newResources);
   };
 
@@ -310,6 +344,35 @@ export default function Builder({ initialData = null, projectId = null, initialU
       window.alert("Failed to deploy API to cloud.");
     } finally {
       setIsDeploying(false);
+    }
+  };
+
+  const handlePublishPreset = async (e) => {
+    e.preventDefault();
+    setPublishLoading(true);
+    try {
+      const res = await fetch('/api/presets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: publishTitle, description: publishDesc, config, resources })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setShowPublishModal(false);
+        setPublishTitle("");
+        setPublishDesc("");
+        setVerifiedAlert({
+          type: 'success',
+          title: 'Preset Published!',
+          message: 'Preset published successfully to the Discover page!'
+        });
+      } else {
+        window.alert(data.error || "Failed to publish preset");
+      }
+    } catch (e) {
+      window.alert("Network error while publishing preset");
+    } finally {
+      setPublishLoading(false);
     }
   };
 
@@ -435,24 +498,42 @@ export default function Builder({ initialData = null, projectId = null, initialU
             {showDownloadMenu && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowDownloadMenu(false)}></div>
-                <div className="absolute right-0 top-full mt-2 w-48 bg-[#09090b]/90 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden py-1">
+                <div className="absolute right-0 mt-2 w-56 bg-[#0c1017]/90 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1.5 z-50">
                   <button 
                     onClick={() => handleDownload("code")}
-                    className="w-full text-left px-4 py-2.5 text-sm text-neutral-300 hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2"
+                    className="w-full text-left px-3 py-2 text-sm text-neutral-300 hover:bg-white/10 hover:text-white rounded-lg transition-colors flex items-center gap-2"
                   >
-                    <svg className="w-4 h-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-4 h-4 text-neutral-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                     </svg>
-                    Code (server.js)
+                    Download server.js
                   </button>
                   <button 
                     onClick={() => handleDownload("docs")}
-                    className="w-full text-left px-4 py-2.5 text-sm text-neutral-300 hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2"
+                    className="w-full text-left px-3 py-2 text-sm text-neutral-300 hover:bg-white/10 hover:text-white rounded-lg transition-colors flex items-center gap-2 mt-1"
                   >
-                    <svg className="w-4 h-4 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-4 h-4 text-cyan-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    API Docs (.md)
+                    Download API Docs (.md)
+                  </button>
+                  <button 
+                    onClick={() => { setShowDownloadMenu(false); exportToOpenAPI(config, resources); }}
+                    className="w-full text-left px-3 py-2 text-sm text-neutral-300 hover:bg-white/10 hover:text-white rounded-lg transition-colors flex items-center gap-2 mt-1"
+                  >
+                    <svg className="w-4 h-4 text-cyan-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Export OpenAPI 3.0 (JSON)
+                  </button>
+                  <button 
+                    onClick={() => { setShowDownloadMenu(false); exportToPostman(config, resources); }}
+                    className="w-full text-left px-3 py-2 text-sm text-neutral-300 hover:bg-white/10 hover:text-white rounded-lg transition-colors flex items-center gap-2 mt-1"
+                  >
+                    <svg className="w-4 h-4 text-orange-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                    </svg>
+                    Export Postman Collection
                   </button>
                 </div>
               </>
@@ -551,7 +632,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                   </svg>
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold text-white">Email Verified!</h4>
+                  <h4 className="text-sm font-semibold text-white">{verifiedAlert.title || (verifiedAlert.type === 'info' ? 'Notice' : 'Success!')}</h4>
                   <p className="text-xs text-emerald-200/90">{verifiedAlert.message}</p>
                 </div>
               </div>
@@ -597,7 +678,9 @@ export default function Builder({ initialData = null, projectId = null, initialU
             <button onClick={handleLogout} className="text-neutral-400 hover:text-red-400 text-xs font-semibold transition-colors uppercase tracking-wider">Logout</button>
           </div>
         ) : (
-          <button onClick={() => { setAuthReason("login"); setShowAuthModal(true); }} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] backdrop-blur-md">Sign In</button>
+          <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md border border-white/10 p-1.5 rounded-2xl shadow-lg">
+            <button onClick={() => { setAuthReason("login"); setShowAuthModal(true); }} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] uppercase tracking-wider">Sign In</button>
+          </div>
         )}
       </div>
 
@@ -678,13 +761,51 @@ export default function Builder({ initialData = null, projectId = null, initialU
         </div>
       )}
 
+      {showPublishModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 w-full max-w-md shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <button onClick={() => setShowPublishModal(false)} className="absolute top-5 right-5 text-neutral-500 hover:text-white transition-colors">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h2 className="text-2xl font-bold text-white mb-6 relative z-10 flex items-center gap-2">
+              🌎 Publish Preset
+            </h2>
+            <form onSubmit={handlePublishPreset} className="space-y-4 relative z-10">
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5">Preset Title</label>
+                <input type="text" required value={publishTitle} onChange={e => setPublishTitle(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all" placeholder="e.g. E-Commerce Storefront" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5">Description (Optional)</label>
+                <textarea rows={3} value={publishDesc} onChange={e => setPublishDesc(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all" placeholder="A brief description of this API schema..." />
+              </div>
+              <button type="submit" disabled={publishLoading} className="w-full py-3 mt-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-sm font-semibold transition-all shadow-[0_0_20px_rgba(8,145,178,0.3)] disabled:opacity-50">
+                {publishLoading ? 'Publishing...' : 'Publish to Community'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {isFullscreen && (
         <div className="fixed inset-0 z-[100] p-4 sm:p-8 bg-black/90 backdrop-blur-md flex flex-col">
           {renderCodePreview(true)}
         </div>
       )}
-      <div className="min-h-screen bg-[#050505] text-white font-sans p-4 sm:p-8 md:p-12 selection:bg-indigo-500/30">
-      <div className="max-w-[1400px] mx-auto space-y-12">
+      <div className="relative min-h-screen bg-[#050505] text-white font-sans selection:bg-indigo-500/30 overflow-hidden">
+        <div className="absolute inset-0 z-0 opacity-15 pointer-events-none mix-blend-screen">
+          <DotField
+            dotRadius={1.5}
+            dotSpacing={14}
+            bulgeStrength={67}
+            glowRadius={160}
+            sparkle={true}
+            waveAmplitude={0}
+          />
+        </div>
+        <div className="relative z-10 p-4 sm:p-8 md:p-12">
+          <div className="max-w-[1400px] mx-auto space-y-12">
         <header className="space-y-4">
           <h1 className="text-5xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-cyan-400 to-indigo-400 animate-gradient-x">
             Mock2Block
@@ -735,15 +856,24 @@ export default function Builder({ initialData = null, projectId = null, initialU
             <section className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] rounded-3xl p-6 sm:p-8 relative overflow-hidden group transition-all duration-500 hover:bg-white/[0.04]">
               <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-all duration-500 pointer-events-none"></div>
               
-              <h2 className="text-xl font-semibold mb-6 flex items-center gap-3">
-                <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400 border border-indigo-500/20">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                Global Settings
-              </h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold flex items-center gap-3">
+                  <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400 border border-indigo-500/20">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  Global Settings
+                </h2>
+                {!projectId && (
+                  <div onClick={handleDeploy} className={`cursor-pointer ${isDeploying ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <SpecularButton size="sm" baseColor="#4f46e5" className="text-sm rounded-xl !bg-indigo-600/20 !border-indigo-500/30 hover:!bg-indigo-600/30" autoAnimate>
+                      {isDeploying ? "Deploying..." : "☁️ Deploy to Cloud"}
+                    </SpecularButton>
+                  </div>
+                )}
+              </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 relative z-10">
                 <div className="space-y-2">
@@ -786,29 +916,36 @@ export default function Builder({ initialData = null, projectId = null, initialU
             </section>
 
             {/* Presets */}
-            <section className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white/[0.02] p-4 rounded-2xl border border-white/5">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <span className="text-sm font-medium text-neutral-400 px-2">Quick Presets:</span>
+            <section className="flex flex-wrap items-center justify-between gap-4 bg-white/[0.02] p-5 rounded-2xl border border-white/5">
+              <div className="flex flex-wrap items-center justify-between width-[100% gap-3 ml-auto">
+                <Link href="/discover" className="cursor-pointer block">
+                  <SpecularButton size="sm" baseColor="#e11d48" className="text-sm whitespace-nowrap rounded-xl !bg-rose-600/20 !border-rose-500/30 hover:!bg-rose-600/30 text-rose-300" autoAnimate>
+                    🔍 Discover Presets
+                  </SpecularButton>
+                </Link>
+                {user && (
+                  <div onClick={() => setShowPublishModal(true)} className="cursor-pointer">
+                    <SpecularButton size="sm" baseColor="#0891b2" className="text-sm whitespace-nowrap rounded-xl !bg-cyan-600/20 !border-cyan-500/30 hover:!bg-cyan-600/30 text-cyan-300" autoAnimate>
+                      🌎 Publish as Preset
+                    </SpecularButton>
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-4">
+                <span className="text-sm font-medium text-neutral-400 px-2 whitespace-nowrap">Quick Presets:</span>
                 <div className="flex flex-wrap gap-3">
                   <div onClick={() => loadPreset("todos")} className="cursor-pointer">
-                    <SpecularButton size="sm" className="text-sm rounded-xl" autoAnimate>
+                    <SpecularButton size="sm" className="text-sm whitespace-nowrap rounded-xl" autoAnimate>
                       Load Todo App
                     </SpecularButton>
                   </div>
                   <div onClick={() => loadPreset("ecommerce")} className="cursor-pointer">
-                    <SpecularButton size="sm" className="text-sm rounded-xl" autoAnimate>
+                    <SpecularButton size="sm" className="text-sm whitespace-nowrap rounded-xl" autoAnimate>
                       Load E-commerce
                     </SpecularButton>
                   </div>
                 </div>
               </div>
-              {!projectId && (
-                <div onClick={handleDeploy} className={`cursor-pointer ${isDeploying ? 'opacity-50 pointer-events-none' : ''}`}>
-                  <SpecularButton size="sm" className="text-sm rounded-xl !bg-indigo-600/20 !border-indigo-500/30 hover:!bg-indigo-600/30" autoAnimate>
-                    {isDeploying ? "Deploying..." : "☁️ Deploy to Cloud"}
-                  </SpecularButton>
-                </div>
-              )}
             </section>
 
             {/* AI Generation */}
@@ -967,14 +1104,15 @@ export default function Builder({ initialData = null, projectId = null, initialU
 
                       <div className="space-y-3 bg-black/20 rounded-2xl p-4 border border-white/5">
                         <div className="grid grid-cols-12 gap-3 px-3 pb-2 border-b border-white/5 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
-                          <div className="col-span-6 sm:col-span-7">Field Name</div>
-                          <div className="col-span-5 sm:col-span-4">Type</div>
+                          <div className="col-span-4">Field Name</div>
+                          <div className="col-span-3">Type</div>
+                          <div className="col-span-4">Mock Data</div>
                           <div className="col-span-1"></div>
                         </div>
                         
                         {res.fields.map((field, fieldIndex) => (
                           <div key={fieldIndex} className="grid grid-cols-12 gap-3 items-center group">
-                            <div className="col-span-6 sm:col-span-7">
+                            <div className="col-span-4">
                               <input
                                 type="text"
                                 value={field.name}
@@ -983,7 +1121,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                                 placeholder="field_name"
                               />
                             </div>
-                            <div className="col-span-5 sm:col-span-4 relative">
+                            <div className="col-span-3 relative">
                               <select
                                 value={field.type}
                                 onChange={(e) => updateField(resIndex, fieldIndex, "type", e.target.value)}
@@ -998,6 +1136,70 @@ export default function Builder({ initialData = null, projectId = null, initialU
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
                                 </svg>
                               </div>
+                            </div>
+                            <div className="col-span-4 relative">
+                              {field.type === 'boolean' ? (
+                                <div className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-neutral-500 font-medium cursor-not-allowed flex items-center justify-center">
+                                  Random True/False
+                                </div>
+                              ) : (
+                                <>
+                                  <select
+                                    value={field.mockType || 'auto'}
+                                    onChange={(e) => updateField(resIndex, fieldIndex, "mockType", e.target.value)}
+                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-pink-200 focus:outline-none focus:ring-1 focus:ring-pink-500/50 hover:bg-white/10 transition-all appearance-none cursor-pointer font-medium"
+                                  >
+                                    <option value="auto" className="bg-neutral-900 text-white">✨ Auto-detect</option>
+                                    {field.type === 'number' ? (
+                                      <optgroup label="Numeric" className="bg-neutral-900 text-white/50">
+                                        <option value="price" className="bg-neutral-900 text-white">Price</option>
+                                        <option value="age" className="bg-neutral-900 text-white">Age</option>
+                                        <option value="amount" className="bg-neutral-900 text-white">Amount</option>
+                                      </optgroup>
+                                    ) : (
+                                      <>
+                                        <optgroup label="Identifiers" className="bg-neutral-900 text-white/50">
+                                          <option value="uuid" className="bg-neutral-900 text-white">UUID</option>
+                                          <option value="mongodb_id" className="bg-neutral-900 text-white">MongoDB ID</option>
+                                        </optgroup>
+                                        <optgroup label="People" className="bg-neutral-900 text-white/50">
+                                          <option value="first_name" className="bg-neutral-900 text-white">First Name</option>
+                                          <option value="last_name" className="bg-neutral-900 text-white">Last Name</option>
+                                          <option value="full_name" className="bg-neutral-900 text-white">Full Name</option>
+                                          <option value="email" className="bg-neutral-900 text-white">Email</option>
+                                          <option value="password" className="bg-neutral-900 text-white">Password</option>
+                                          <option value="avatar" className="bg-neutral-900 text-white">Avatar</option>
+                                        </optgroup>
+                                        <optgroup label="Content" className="bg-neutral-900 text-white/50">
+                                          <option value="words" className="bg-neutral-900 text-white">Words</option>
+                                          <option value="paragraph" className="bg-neutral-900 text-white">Paragraph</option>
+                                          <option value="image_url" className="bg-neutral-900 text-white">Image URL</option>
+                                          <option value="url" className="bg-neutral-900 text-white">URL</option>
+                                        </optgroup>
+                                        <optgroup label="Commerce" className="bg-neutral-900 text-white/50">
+                                          <option value="product_name" className="bg-neutral-900 text-white">Product Name</option>
+                                          <option value="company_name" className="bg-neutral-900 text-white">Company Name</option>
+                                        </optgroup>
+                                        <optgroup label="Location" className="bg-neutral-900 text-white/50">
+                                          <option value="address" className="bg-neutral-900 text-white">Address</option>
+                                          <option value="city" className="bg-neutral-900 text-white">City</option>
+                                          <option value="country" className="bg-neutral-900 text-white">Country</option>
+                                          <option value="phone" className="bg-neutral-900 text-white">Phone</option>
+                                        </optgroup>
+                                        <optgroup label="Time" className="bg-neutral-900 text-white/50">
+                                          <option value="date_recent" className="bg-neutral-900 text-white">Recent Date</option>
+                                          <option value="date_past" className="bg-neutral-900 text-white">Past Date</option>
+                                        </optgroup>
+                                      </>
+                                    )}
+                                  </select>
+                                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-neutral-400">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+                                    </svg>
+                                  </div>
+                                </>
+                              )}
                             </div>
                             <div className="col-span-1 flex justify-end">
                               <button
@@ -1055,8 +1257,9 @@ export default function Builder({ initialData = null, projectId = null, initialU
             </div>
           </motion.div>
         </motion.div>
+          </div>
+        </div>
       </div>
-    </div>
     </>
   );
 }
