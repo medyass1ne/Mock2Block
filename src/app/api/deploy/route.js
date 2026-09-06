@@ -1,4 +1,8 @@
 import { kv } from '@vercel/kv';
+import jwt from 'jsonwebtoken';
+import { cookies } from 'next/headers';
+
+const JWT_SECRET = process.env.JWT_SECRET;
 
 export async function POST(req) {
   try {
@@ -11,13 +15,27 @@ export async function POST(req) {
       });
     }
 
-    // Generate unique project ID (e.g., 'lw8d4fxa7h2')
+    // Generate unique project ID
     const projectId = Date.now().toString(36) + Math.random().toString(36).substring(2);
 
     // Save state to Vercel KV
-    await kv.set(`project:${projectId}`, { config, resources, mockDb });
+    await kv.set(`project:${projectId}`, { config, resources, mockDb, createdAt: Date.now() });
 
-    // Format the base API URL (could use req.headers.get("host") if deploying this to Vercel)
+    // Link to user if authenticated
+    try {
+      const cookieStore = await cookies();
+      const token = cookieStore.get('token');
+      if (token) {
+        const decoded = jwt.verify(token.value, JWT_SECRET);
+        if (decoded && decoded.username) {
+          await kv.sadd(`user:${decoded.username}:projects`, projectId);
+        }
+      }
+    } catch (e) {
+      // Ignore token verification errors during deploy, just means it's an anonymous deploy
+      console.error("Auth linking skipped:", e.message);
+    }
+
     const host = req.headers.get("host") || "localhost:3000";
     const protocol = host.includes("localhost") ? "http" : "https";
     const baseUrl = `${protocol}://${host}/projects/${projectId}/test/api`;

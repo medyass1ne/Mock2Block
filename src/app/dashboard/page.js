@@ -1,8 +1,8 @@
-import Builder from "../components/Builder";
+import Dashboard from "../../components/Dashboard";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 
-export default async function Home() {
+export default async function DashboardPage() {
   let initialUser = null;
   try {
     const cookieStore = await cookies();
@@ -15,5 +15,5 @@ export default async function Home() {
     console.error("Token verification failed", e);
   }
 
-  return <Builder initialUser={initialUser} />;
+  return <Dashboard initialUser={initialUser} />;
 }
