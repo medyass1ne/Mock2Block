@@ -5,6 +5,7 @@ export default function ApiTester({ resources, mockDb, setMockDb, resetDb, confi
   const [method, setMethod] = useState("GET");
   const [path, setPath] = useState(resources.length > 0 ? `/api/${resources[0].name}` : "");
   const [reqBody, setReqBody] = useState("{\n  \n}");
+  const [reqHeaders, setReqHeaders] = useState("{\n  \"Authorization\": \"Bearer my-token\"\n}");
   const [response, setResponse] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -27,8 +28,18 @@ export default function ApiTester({ resources, mockDb, setMockDb, resetDb, confi
           return;
         }
       }
+      let parsedHeaders = {};
+      try {
+        if (reqHeaders.trim()) {
+          parsedHeaders = JSON.parse(reqHeaders);
+        }
+      } catch (e) {
+        setResponse({ status: 400, data: { error: "Invalid JSON headers" }, timeMs: 0 });
+        setIsLoading(false);
+        return;
+      }
       
-      const result = await dispatchMockRequest(method, path, parsedBody, mockDb, config);
+      const result = await dispatchMockRequest(method, path, parsedBody, parsedHeaders, mockDb, config, resources);
       setResponse({
         status: result.status,
         data: result.data,
@@ -87,10 +98,10 @@ export default function ApiTester({ resources, mockDb, setMockDb, resetDb, confi
           onChange={(e) => setMethod(e.target.value)}
           className={`bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-white/20 transition-colors ${getMethodColor(method)}`}
         >
-          <option value="GET">GET</option>
-          <option value="POST">POST</option>
-          <option value="PUT">PUT</option>
-          <option value="DELETE">DELETE</option>
+          <option value="GET" className="bg-black text-white">GET</option>
+          <option value="POST" className="bg-black text-white">POST</option>
+          <option value="PUT" className="bg-black text-white">PUT</option>
+          <option value="DELETE" className="bg-black text-white">DELETE</option>
         </select>
         <div className="flex-1 relative group">
           <input 
@@ -142,22 +153,35 @@ export default function ApiTester({ resources, mockDb, setMockDb, resetDb, confi
       </div>
 
       <div className="flex flex-col lg:flex-row gap-5 flex-1 min-h-0 pt-2">
-        <div className={`flex flex-col ${method === "POST" || method === "PUT" ? 'lg:w-1/2' : 'hidden'} min-h-0 space-y-2`}>
-          <div className="text-xs font-semibold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            Request Body (JSON)
+        <div className="flex flex-col lg:w-1/2 min-h-0">
+          {(method === "POST" || method === "PUT") && (
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Request Body (JSON)</label>
+              </div>
+              <textarea
+                value={reqBody}
+                onChange={(e) => setReqBody(e.target.value)}
+                className="w-full h-32 bg-black/40 border border-white/10 rounded-xl p-4 text-sm text-neutral-300 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent custom-scrollbar transition-all shadow-inner"
+                spellCheck="false"
+              />
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Request Headers (JSON)</label>
+            </div>
+            <textarea
+              value={reqHeaders}
+              onChange={(e) => setReqHeaders(e.target.value)}
+              className="w-full h-24 bg-black/40 border border-white/10 rounded-xl p-4 text-sm text-neutral-300 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent custom-scrollbar transition-all shadow-inner"
+              spellCheck="false"
+            />
           </div>
-          <textarea
-            value={reqBody}
-            onChange={(e) => setReqBody(e.target.value)}
-            className="flex-1 min-h-[200px] bg-black/60 border border-white/10 rounded-xl p-4 text-sm font-mono text-neutral-300 focus:outline-none focus:border-white/20 custom-scrollbar resize-none shadow-inner"
-            spellCheck={false}
-          />
         </div>
         
-        <div className={`flex flex-col ${method === "POST" || method === "PUT" ? 'lg:w-1/2' : 'w-full'} min-h-0 space-y-2`}>
+        <div className="flex flex-col lg:w-1/2 min-h-0 space-y-2">
           <div className="flex items-center justify-between">
             <div className="text-xs font-semibold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

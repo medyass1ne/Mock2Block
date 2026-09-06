@@ -60,6 +60,32 @@ async function handleRequest(method, req, params) {
       });
     }
 
+    const resourceConfig = resources.find(r => r.name === resourceName);
+    
+    // Auth Middleware
+    if (resourceConfig && resourceConfig.requireAuth) {
+      const authHeader = req.headers.get("authorization");
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json", ...corsHeaders() }
+        });
+      }
+    }
+
+    // Chaos Middleware
+    if (config.chaosMode) {
+      const chance = Math.random() * 100;
+      if (chance < (config.chaosRate || 0)) {
+        const errors = [500, 403, 502, 503];
+        const randomError = errors[Math.floor(Math.random() * errors.length)];
+        return new Response(JSON.stringify({ error: "Chaos injected server error" }), {
+          status: randomError,
+          headers: { "Content-Type": "application/json", ...corsHeaders() }
+        });
+      }
+    }
+
     const collection = mockDb[resourceName];
     let responseBody = {};
     let status = 200;
@@ -73,7 +99,31 @@ async function handleRequest(method, req, params) {
           responseBody = { error: `${resourceName} not found` };
         }
       } else {
-        responseBody = collection;
+        // Pagination & Filtering
+        const url = new URL(req.url);
+        const searchParams = Object.fromEntries(url.searchParams.entries());
+        
+        let filteredData = [...collection];
+        
+        // Filtering
+        Object.entries(searchParams).forEach(([key, value]) => {
+          if (key !== 'page' && key !== 'limit') {
+            // Loose equality to handle string vs number comparisons in mock data
+            filteredData = filteredData.filter(item => item[key] == value);
+          }
+        });
+
+        // Pagination
+        const page = parseInt(searchParams.page) || 1;
+        const limit = parseInt(searchParams.limit) || filteredData.length;
+        const paginatedData = filteredData.slice((page - 1) * limit, page * limit);
+        
+        responseBody = {
+          data: paginatedData,
+          total: filteredData.length,
+          page,
+          limit
+        };
       }
     } 
     else if (method === "POST") {

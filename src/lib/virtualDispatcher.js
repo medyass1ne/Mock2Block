@@ -1,4 +1,4 @@
-export default async function dispatchMockRequest(method, path, body, mockDb, config) {
+export default async function dispatchMockRequest(method, path, body, headers, mockDb, config, resources) {
   // Simulate network delay
   if (config.delay && config.delay > 0) {
     await new Promise(resolve => setTimeout(resolve, config.delay));
@@ -11,14 +11,44 @@ export default async function dispatchMockRequest(method, path, body, mockDb, co
 
   let response = { status: 404, data: { error: "Not Found" } };
 
-  // Helper to parse path: "/api/todos" -> { resource: "todos", id: undefined }
-  // "/api/todos/123" -> { resource: "todos", id: "123" }
-  const match = path.match(/^\/api\/([^\/]+)(?:\/([^\/]+))?$/);
+  // Helper to parse path: "/api/todos?page=1" -> match path without query string
+  const urlObj = new URL(path, 'http://localhost');
+  const pathname = urlObj.pathname;
+  const match = pathname.match(/^\/api\/([^\/]+)(?:\/([^\/]+))?$/);
   
   if (match) {
     const resourceName = match[1];
     const id = match[2];
     
+    // Auth Check Middleware
+    const resourceConfig = resources?.find(r => r.name === resourceName);
+    if (resourceConfig && resourceConfig.requireAuth) {
+      const authHeader = headers?.Authorization || headers?.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return {
+          status: 401,
+          data: { error: "Unauthorized" },
+          timeMs: Math.round(performance.now() - start + (config.delay || 0)),
+          newDb
+        };
+      }
+    }
+
+    // Chaos Middleware
+    if (config.chaosMode) {
+      const chance = Math.random() * 100;
+      if (chance < (config.chaosRate || 0)) {
+        const errors = [500, 403, 502, 503];
+        const randomError = errors[Math.floor(Math.random() * errors.length)];
+        return {
+          status: randomError,
+          data: { error: "Chaos injected server error" },
+          timeMs: Math.round(performance.now() - start + (config.delay || 0)),
+          newDb
+        };
+      }
+    }
+
     if (newDb[resourceName]) {
       const collection = newDb[resourceName];
 
@@ -29,7 +59,29 @@ export default async function dispatchMockRequest(method, path, body, mockDb, co
             if (item) response = { status: 200, data: item };
             else response = { status: 404, data: { error: `${resourceName} not found` } };
           } else {
-            response = { status: 200, data: collection };
+            // Pagination & Filtering
+            const searchParams = Object.fromEntries(urlObj.searchParams.entries());
+            let filteredData = [...collection];
+            
+            Object.entries(searchParams).forEach(([key, value]) => {
+              if (key !== 'page' && key !== 'limit') {
+                filteredData = filteredData.filter(item => item[key] == value);
+              }
+            });
+
+            const page = parseInt(searchParams.page) || 1;
+            const limit = parseInt(searchParams.limit) || filteredData.length;
+            const paginatedData = filteredData.slice((page - 1) * limit, page * limit);
+
+            response = { 
+              status: 200, 
+              data: {
+                data: paginatedData,
+                total: filteredData.length,
+                page,
+                limit
+              } 
+            };
           }
         } 
         else if (method === "POST") {

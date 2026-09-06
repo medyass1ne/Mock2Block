@@ -57,7 +57,7 @@ const VirtualEndpoint = ({ children }) => {
 
 export default function Builder({ initialData = null, projectId = null, initialUser = null }) {
   const router = useRouter();
-  const [config, setConfig] = useState(initialData?.config || { port: 5000, cors: true, delay: 0 });
+  const [config, setConfig] = useState({ port: 5000, cors: true, delay: 0, chaosMode: false, chaosRate: 10, ...(initialData?.config || {}) });
   const [resources, setResources] = useState(initialData?.resources || [
     {
       name: "todos",
@@ -269,7 +269,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
   const addResource = () => {
     setResources((prev) => [
       ...prev,
-      { name: "new_resource", fields: [{ name: "field_name", type: "string" }] },
+      { name: "new_resource", requireAuth: false, fields: [{ name: "field_name", type: "string" }] },
     ]);
   };
 
@@ -280,6 +280,12 @@ export default function Builder({ initialData = null, projectId = null, initialU
   const updateResourceName = (index, name) => {
     const newResources = [...resources];
     newResources[index].name = name;
+    setResources(newResources);
+  };
+
+  const updateResourceAuth = (index, requireAuth) => {
+    const newResources = [...resources];
+    newResources[index].requireAuth = requireAuth;
     setResources(newResources);
   };
 
@@ -976,6 +982,46 @@ export default function Builder({ initialData = null, projectId = null, initialU
                   </label>
                 </div>
               </div>
+
+              {/* Chaos Mode */}
+              <div className="mt-6 pt-6 border-t border-white/10 relative z-10 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="flex items-center sm:items-center">
+                  <label className="flex items-center cursor-pointer group w-full justify-between sm:justify-start gap-4">
+                    <span className="text-sm font-medium text-red-400 flex items-center gap-2">
+                      🔥 Chaos Mode
+                    </span>
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        name="chaosMode"
+                        checked={config.chaosMode}
+                        onChange={handleConfigChange}
+                        className="sr-only"
+                      />
+                      <div className={`block w-14 h-8 rounded-full transition-all duration-300 ${config.chaosMode ? 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'bg-black/50 border border-white/10 group-hover:border-white/20'}`}></div>
+                      <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform duration-300 shadow-sm ${config.chaosMode ? 'transform translate-x-6' : ''}`}></div>
+                    </div>
+                  </label>
+                </div>
+
+                {config.chaosMode && (
+                  <div className="space-y-2 animate-in fade-in slide-in-from-left-4 duration-300">
+                    <div className="flex justify-between items-center">
+                      <label className="text-sm font-medium text-red-400">Chaos Rate</label>
+                      <span className="text-xs font-mono text-white/70 bg-black/40 px-2 py-1 rounded-md border border-white/10">{config.chaosRate}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      name="chaosRate"
+                      min="0"
+                      max="100"
+                      value={config.chaosRate}
+                      onChange={handleConfigChange}
+                      className="w-full accent-red-500 h-2 bg-black/40 rounded-lg appearance-none cursor-pointer border border-white/10 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                    />
+                  </div>
+                )}
+              </div>
             </section>
 
             {/* Presets */}
@@ -1154,15 +1200,30 @@ export default function Builder({ initialData = null, projectId = null, initialU
                             placeholder="resource_name"
                           />
                         </div>
-                        <button
-                          onClick={() => removeResource(resIndex)}
-                          className="text-neutral-500 hover:text-red-400 bg-red-500/0 hover:bg-red-500/10 transition-all p-2.5 rounded-xl border border-transparent hover:border-red-500/20 self-end sm:self-auto"
-                          title="Remove Resource"
-                        >
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                        <div className="flex items-center gap-4">
+                          <label className="flex items-center cursor-pointer group gap-2">
+                            <span className="text-xs font-medium text-amber-400/80">🔒 Require Auth</span>
+                            <div className="relative">
+                              <input
+                                type="checkbox"
+                                checked={res.requireAuth || false}
+                                onChange={(e) => updateResourceAuth(resIndex, e.target.checked)}
+                                className="sr-only"
+                              />
+                              <div className={`block w-10 h-6 rounded-full transition-all duration-300 ${res.requireAuth ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'bg-black/50 border border-white/10'}`}></div>
+                              <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ${res.requireAuth ? 'transform translate-x-4' : ''}`}></div>
+                            </div>
+                          </label>
+                          <button
+                            onClick={() => removeResource(resIndex)}
+                            className="text-neutral-500 hover:text-red-400 bg-red-500/0 hover:bg-red-500/10 transition-all p-2.5 rounded-xl border border-transparent hover:border-red-500/20"
+                            title="Remove Resource"
+                          >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
 
                       <div className="space-y-3 bg-black/20 rounded-2xl p-4 border border-white/5">
