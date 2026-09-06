@@ -15,7 +15,7 @@
 
 <br />
 
-> **Stop waiting for backend teams.** Mock2Block lets frontend developers visually scaffold an Express.js server with full CRUD endpoints, test them in an in-browser sandbox, or deploy them to a live cloud URL in seconds — all powered by a dark glassmorphism UI, AI generation, and zero backend setup.
+> **Stop waiting for backend teams.** Mock2Block lets frontend developers visually scaffold an Express.js server with full CRUD endpoints, test them in an in-browser sandbox, or deploy them to a live cloud URL in seconds — all powered by AI generation, and zero backend setup.
 
 <br />
 

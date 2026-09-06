@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const GROQ_API_KEY = "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";
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 export async function POST(req) {
   try {
