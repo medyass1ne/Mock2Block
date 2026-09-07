@@ -68,7 +68,7 @@ export default async function generateExpress(config, resources, mockDb = null) 
   }
 
   code += `// CRUD Endpoints\n`;
-  resources.forEach(res => {
+  for (const res of resources) {
     const rName = res.name;
     const rPath = `/api/${rName}`;
     
