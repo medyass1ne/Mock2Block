@@ -87,7 +87,8 @@ const SpecularButton = ({
   disabled = false,
   onClick,
   className = '',
-  type = 'button'
+  type = 'button',
+  ...rest
 }) => {
   const btnRef = useRef(null);
   const fxRef = useRef(null);
@@ -228,6 +229,7 @@ const SpecularButton = ({
       type={type}
       disabled={disabled}
       onClick={onClick}
+      {...rest}
       className={`specular-button specular-button--${size}${className ? ` ${className}` : ''}`}
       style={{
         '--sb-radius': `${radius}px`,

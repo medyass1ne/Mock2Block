@@ -176,11 +176,11 @@ export default function Builder({ initialData = null, projectId = null, initialU
     }
   }, [projectId]);
 
-  const initializeDb = () => {
+  const initializeDb = async () => {
     const newDb = {};
-    resources.forEach(res => {
-      newDb[res.name] = seedResource(res.name, res.fields, 3);
-    });
+    for (const res of resources) {
+      newDb[res.name] = await seedResource(res.name, res.fields, 3);
+    }
     setMockDb(newDb);
   };
 
@@ -213,7 +213,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      setGeneratedCode(generateExpress(config, resources, mockDb));
+      generateExpress(config, resources, mockDb).then(setGeneratedCode);
     }, 300);
     return () => clearTimeout(handler);
   }, [config, resources, mockDb]);

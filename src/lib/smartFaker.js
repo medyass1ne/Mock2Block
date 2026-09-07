@@ -1,6 +1,5 @@
-import { faker } from '@faker-js/faker';
-
-export function generateSmartRecord(resourceName, fields) {
+export async function generateSmartRecord(resourceName, fields) {
+  const { faker } = await import('@faker-js/faker');
   const record = { id: faker.string.uuid() };
 
   fields.forEach((field) => {
@@ -104,10 +103,10 @@ export function generateSmartRecord(resourceName, fields) {
   return record;
 }
 
-export function seedResource(resourceName, fields, count = 3) {
+export async function seedResource(resourceName, fields, count = 3) {
   const records = [];
   for (let i = 0; i < count; i++) {
-    records.push(generateSmartRecord(resourceName, fields));
+    records.push(await generateSmartRecord(resourceName, fields));
   }
   return records;
 }

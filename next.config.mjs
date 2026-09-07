@@ -2,7 +2,12 @@
 const nextConfig = {
   /* config options here */
   reactCompiler: true,
-  productionBrowserSourceMaps: true,
+  productionBrowserSourceMaps: false,
+  modularizeImports: {
+    'lucide-react': {
+      transform: 'lucide-react/dist/esm/icons/{{kebabCase member}}',
+    },
+  },
 };
 
 export default nextConfig;

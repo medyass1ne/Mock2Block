@@ -1,6 +1,6 @@
 import { seedResource } from './smartFaker';
 
-export default function generateExpress(config, resources, mockDb = null) {
+export default async function generateExpress(config, resources, mockDb = null) {
   const { port = 5000, cors = true, delay = 0 } = config;
 
   let code = `const express = require('express');\n`;
@@ -49,10 +49,10 @@ export default function generateExpress(config, resources, mockDb = null) {
   }
 
   code += `\n// In-memory Data Stores\n`;
-  resources.forEach(res => {
+  for (const res of resources) {
     const items = (mockDb && mockDb[res.name] && mockDb[res.name].length > 0)
       ? mockDb[res.name]
-      : seedResource(res.name, res.fields, 3);
+      : await seedResource(res.name, res.fields, 3);
 
     const formattedObjects = items.map(item => {
       const fieldLines = Object.entries(item).map(([key, value]) => {
@@ -131,11 +131,11 @@ export default function generateExpress(config, resources, mockDb = null) {
     code += `  const deletedItem = ${rName}.splice(index, 1)[0];\n`;
     code += `  res.json(deletedItem);\n`;
     code += `});\n`;
-  });
+  }
 
   code += `\n// Start Server\n`;
-  code += `app.listen(PORT, () => {\n`;
-  code += `  console.log(\`Server is running on http://localhost:\${PORT}\`);\n`;
+  code += `app.listen(${config.port}, () => {\n`;
+  code += `  console.log('🚀 Mock server running on http://localhost:${config.port}');\n`;
   code += `});\n`;
 
   return code;
