@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
+import dynamic from 'next/dynamic';
 import generateExpress from "../lib/generateExpress";
 import SpotlightCard from "../components/SpotlightCard";
 import SpecularButton from "../components/SpecularButton";
@@ -14,17 +15,22 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Skeleton from "./Skeleton";
 import { motion, AnimatePresence } from "framer-motion";
-import * as pdfjsLib from 'pdfjs-dist';
 import { exportToOpenAPI, exportToPostman } from "../lib/exporters";
 import DotField from "./DotField";
 import { Zap, Lock, Globe, Search, Sparkles, Globe2 } from "lucide-react";
 import GradualBlur from "./GradualBlur";
-import MermaidDiagram from "./MermaidDiagram";
 import generateERDiagram from "../lib/generateMermaid";
 
-if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-}
+const MermaidDiagram = dynamic(() => import('./MermaidDiagram'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-64 text-neutral-500 text-sm">
+      Loading visualizer...
+    </div>
+  ),
+});
+
+
 
 const VirtualEndpoint = ({ children }) => {
   const containerRef = useRef(null);
@@ -469,6 +475,8 @@ export default function Builder({ initialData = null, projectId = null, initialU
   };
 
   const extractPdfText = async (file) => {
+    const pdfjsLib = await import('pdfjs-dist');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     let fullText = '';
@@ -567,8 +575,8 @@ export default function Builder({ initialData = null, projectId = null, initialU
           <div className="relative">
             <div onClick={() => setShowDownloadMenu(!showDownloadMenu)} className="cursor-pointer">
               <SpecularButton size="sm" className="!py-1.5 !px-3 !rounded-lg text-xs" autoAnimate>
-                <span className="flex items-center gap-2">
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <span className="flex items-center gap-2" aria-label="Download options">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
                 </span>
@@ -620,7 +628,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
             )}
           </div>
           
-          <div onClick={copyToClipboard} className="cursor-pointer">
+          <div onClick={copyToClipboard} className="cursor-pointer" role="button" aria-label="Copy code to clipboard">
             <SpecularButton size="sm" className="!py-1.5 !px-3 !rounded-lg text-xs" autoAnimate>
               {copied ? (
                 <span className="flex items-center gap-2 text-green-400">
@@ -638,7 +646,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
               )}
             </SpecularButton>
           </div>
-          <div onClick={() => setIsFullscreen(!isFullscreen)} className="cursor-pointer">
+          <div onClick={() => setIsFullscreen(!isFullscreen)} className="cursor-pointer" role="button" aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}>
             <SpecularButton size="sm" className="!py-1.5 !px-3 !rounded-lg text-xs" autoAnimate>
               <span className="flex items-center gap-2">
                 {isFullscreen ? (
@@ -994,8 +1002,9 @@ export default function Builder({ initialData = null, projectId = null, initialU
               
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 relative z-10">
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-neutral-400">Port Number</label>
+                  <label htmlFor="port-number" className="block text-sm font-medium text-neutral-400">Port Number</label>
                   <input
+                    id="port-number"
                     type="number"
                     name="port"
                     value={config.port}
@@ -1004,8 +1013,9 @@ export default function Builder({ initialData = null, projectId = null, initialU
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-neutral-400">Simulated Delay (ms)</label>
+                  <label htmlFor="simulated-delay" className="block text-sm font-medium text-neutral-400">Simulated Delay (ms)</label>
                   <input
+                    id="simulated-delay"
                     type="number"
                     name="delay"
                     value={config.delay}
@@ -1075,6 +1085,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                       max="100"
                       value={config.chaosRate}
                       onChange={handleConfigChange}
+                      aria-label="Chaos error injection rate percentage"
                       className="w-full accent-red-500 h-2 bg-black/40 rounded-lg appearance-none cursor-pointer border border-white/10 focus:outline-none focus:ring-2 focus:ring-red-500/50"
                     />
                   </div>
@@ -1135,6 +1146,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                     value={aiPrompt}
                     onChange={(e) => setAiPrompt(e.target.value)}
                     placeholder="e.g. A blog with posts and comments containing author, body, and timestamp"
+                    aria-label="Describe your API schema for AI generation"
                     className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 hover:border-white/20 transition-all shadow-inner placeholder-neutral-500"
                     disabled={isGenerating}
                     onKeyDown={(e) => {
@@ -1284,7 +1296,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                           <button
                             onClick={() => removeResource(resIndex)}
                             className="text-neutral-500 hover:text-red-400 bg-red-500/0 hover:bg-red-500/10 transition-all p-2.5 rounded-xl border border-transparent hover:border-red-500/20"
-                            title="Remove Resource"
+                            aria-label={`Remove ${res.name || 'resource'} endpoint`}
                           >
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

@@ -17,8 +17,10 @@ export default async function Home() {
   }
 
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#050505] flex items-center justify-center text-white">Loading Editor...</div>}>
-      <Builder initialUser={initialUser} />
-    </Suspense>
+    <main>
+      <Suspense fallback={<div className="min-h-screen bg-[#050505] flex items-center justify-center text-white">Loading Editor...</div>}>
+        <Builder initialUser={initialUser} />
+      </Suspense>
+    </main>
   );
 }

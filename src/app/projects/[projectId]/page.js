@@ -25,5 +25,5 @@ export default async function ProjectPage({ params }) {
     console.error("Token verification failed", e);
   }
 
-  return <Builder initialData={projectData} projectId={projectId} initialUser={initialUser} />;
+  return <main><Builder initialData={projectData} projectId={projectId} initialUser={initialUser} /></main>;
 }
