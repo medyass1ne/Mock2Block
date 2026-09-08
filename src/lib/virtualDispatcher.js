@@ -11,9 +11,20 @@ export default async function dispatchMockRequest(method, path, body, headers, m
 
   let response = { status: 404, data: { error: "Not Found" } };
 
-  // Helper to parse path: "/api/todos?page=1" -> match path without query string
   const urlObj = new URL(path, 'http://localhost');
   const pathname = urlObj.pathname;
+
+  // Auth Login Interception
+  if (config.authEndpointEnabled && pathname === '/api/auth/login' && method === 'POST') {
+    return {
+      status: 200,
+      data: { token: "mock-jwt-token", message: "Mock login successful" },
+      timeMs: Math.round(performance.now() - start + (config.delay || 0)),
+      newDb
+    };
+  }
+
+  // Helper to parse path: "/api/todos?page=1" -> match path without query string
   const match = pathname.match(/^\/api\/([^\/]+)(?:\/([^\/]+))?$/);
   
   if (match) {

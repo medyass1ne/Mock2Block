@@ -504,7 +504,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
   ), [generatedCode]);
 
   const renderCodePreview = (isOverlay = false) => (
-    <div className={`flex-none xl:flex-1 bg-[#09090b] border border-zinc-800 ${isOverlay ? 'rounded-2xl h-full' : 'rounded-3xl'} overflow-hidden shadow-2xl flex flex-col relative group transition-all duration-300 h-[65vh] min-h-[400px] xl:h-auto`}>
+    <div className={`flex-none xl:flex-1 bg-[#09090b] border border-zinc-800 ${isOverlay ? 'rounded-2xl h-full' : 'rounded-3xl'} overflow-hidden shadow-2xl flex flex-col relative group transition-all duration-300 h-[70vh] min-h-[400px] xl:h-auto`}>
       <div className="absolute inset-0 bg-gradient-to-b from-zinc-900/50 to-transparent pointer-events-none"></div>
       
       <div className="bg-zinc-900/50 px-4 sm:px-5 py-4 border-b border-zinc-800 flex flex-col gap-4 items-center justify-between backdrop-blur-md relative z-20">
@@ -837,7 +837,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                 )}
               </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 relative z-10">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 relative z-10">
                 <div className="space-y-2">
                   <label htmlFor="port-number" className="block text-sm font-medium text-neutral-400">Port Number</label>
                   <input
@@ -860,7 +860,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                     className="w-full bg-black/40 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-zinc-600 hover:border-white/20 transition-all shadow-inner font-mono"
                   />
                 </div>
-                <div className="flex items-center sm:items-end pb-2">
+                <div className="flex items-center sm:items-center pb-2">
                   <label className="flex items-center cursor-pointer group w-full justify-between sm:justify-start gap-4">
                     <span className="text-sm font-medium text-neutral-400">Enable CORS</span>
                     <div className="relative">
@@ -876,7 +876,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                     </div>
                   </label>
                 </div>
-                <div className="flex items-center sm:items-end pb-2">
+                <div className="flex items-center sm:items-center pb-2">
                   <label className="flex items-center cursor-pointer group w-full justify-between sm:justify-start gap-4">
                     <span className="text-sm font-medium text-neutral-400">Auth Endpoint (/api/auth/login)</span>
                     <div className="relative">
@@ -965,16 +965,12 @@ export default function Builder({ initialData = null, projectId = null, initialU
               <div className="flex flex-wrap items-center gap-4">
                 <span className="text-sm font-medium text-neutral-400 px-2 whitespace-nowrap">Quick Presets:</span>
                 <div className="flex flex-wrap gap-3">
-                  <div onClick={() => loadPreset("todos")} className="cursor-pointer">
-                    <SpecularButton size="sm" className="text-sm whitespace-nowrap rounded-xl" autoAnimate>
-                      Load Todo App
-                    </SpecularButton>
-                  </div>
-                  <div onClick={() => loadPreset("ecommerce")} className="cursor-pointer">
-                    <SpecularButton size="sm" className="text-sm whitespace-nowrap rounded-xl" autoAnimate>
-                      Load E-commerce
-                    </SpecularButton>
-                  </div>
+                  <button onClick={() => loadPreset("todos")} className="px-4 py-2 bg-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-700 text-sm font-medium rounded-xl transition-colors border border-zinc-700 cursor-pointer">
+                    Load Todo App
+                  </button>
+                  <button onClick={() => loadPreset("ecommerce")} className="px-4 py-2 bg-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-700 text-sm font-medium rounded-xl transition-colors border border-zinc-700 cursor-pointer">
+                    Load E-commerce
+                  </button>
                 </div>
               </div>
             </section>
@@ -1293,10 +1289,10 @@ export default function Builder({ initialData = null, projectId = null, initialU
           </div>
 
           {/* Right Column: Output Preview */}
-          <motion.div className="xl:col-span-5 w-full flex flex-col space-y-6 xl:h-[calc(100vh-8rem)] xl:sticky xl:top-8">
+          <motion.div className="xl:col-span-5 w-full flex flex-col space-y-6 xl:h-[calc(100vh-8rem)] xl:sticky xl:top-20">
             {!isFullscreen && renderCodePreview()}
 
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 backdrop-blur-md shadow-lg relative overflow-hidden group">
+            {/* <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 backdrop-blur-md shadow-lg relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full blur-2xl group-hover:bg-zinc-800/50 transition-all pointer-events-none"></div>
               <h3 className="text-zinc-300 text-sm font-semibold mb-4 flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1314,7 +1310,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                   <span>node server.js</span>
                 </div>
               </pre>
-            </div>
+            </div> */}
           </motion.div>
         </motion.div>
           </div>

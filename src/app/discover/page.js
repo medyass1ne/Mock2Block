@@ -5,7 +5,14 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import DotField from "../../components/DotField";
-import { Download, Eye, X } from "lucide-react";
+import { Eye, Search, Download, X } from "lucide-react";
+import dynamic from 'next/dynamic';
+import generateERDiagram from "../../lib/generateMermaid";
+
+const MermaidDiagram = dynamic(() => import('../../components/MermaidDiagram'), {
+  ssr: false,
+  loading: () => <div className="text-zinc-500 animate-pulse text-sm">Loading Diagram...</div>
+});
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 
@@ -208,14 +215,7 @@ export default function Discover() {
                 </button>
               </div>
               <div className="p-6 overflow-y-auto flex-1 custom-scrollbar bg-zinc-950">
-                <SyntaxHighlighter 
-                  language="json" 
-                  style={vscDarkPlus} 
-                  customStyle={{ background: 'transparent', margin: 0, padding: 0 }}
-                  wrapLines={true}
-                >
-                  {JSON.stringify(previewPreset.resources, null, 2)}
-                </SyntaxHighlighter>
+                <MermaidDiagram chartString={generateERDiagram(previewPreset.resources)} />
               </div>
               <div className="p-6 border-t border-zinc-800/50 bg-zinc-900/50 flex justify-end">
                 <button 

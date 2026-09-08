@@ -172,7 +172,12 @@ export default function Dashboard({ initialUser = null }) {
                         <span className="text-xs text-zinc-500">{getRelativeTime(p.createdAt || Date.now())}</span>
                         <div className="relative">
                           <button 
-                            onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === p.projectId ? null : p.projectId); }}
+                            onClick={(e) => { 
+                              e.preventDefault(); 
+                              e.stopPropagation(); 
+                              if (e.nativeEvent) e.nativeEvent.stopImmediatePropagation(); 
+                              setOpenDropdownId(openDropdownId === p.projectId ? null : p.projectId); 
+                            }}
                             className="text-zinc-500 hover:text-white transition-colors"
                           >
                             <MoreVertical className="w-5 h-5 cursor-pointer" />
