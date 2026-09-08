@@ -7,8 +7,14 @@ export default async function generateExpress(config, resources, mockDb = null) 
   if (cors) {
     code += `const cors = require('cors');\n`;
   }
-  code += `const crypto = require('crypto');\n\n`;
-  code += `const app = express();\n`;
+  code += `const crypto = require('crypto');\n`;
+  
+  if (config.authEndpointEnabled) {
+    code += `const jwt = require('jsonwebtoken');\n`;
+    code += `const JWT_SECRET = process.env.JWT_SECRET || 'mock2block_secret_key';\n`;
+  }
+
+  code += `\nconst app = express();\n`;
   code += `const PORT = ${port};\n\n`;
 
   code += `// Middleware\n`;
@@ -67,7 +73,16 @@ export default async function generateExpress(config, resources, mockDb = null) 
     code += `const ${res.name} = [\n${formattedObjects.join(',\n')}\n];\n\n`;
   }
 
-  code += `// CRUD Endpoints\n`;
+  if (config.authEndpointEnabled) {
+    code += `\n// Mock Auth Login Endpoint\n`;
+    code += `app.post('/api/auth/login', (req, res) => {\n`;
+    code += `  const { email } = req.body;\n`;
+    code += `  const token = jwt.sign({ email: email || 'mockuser@example.com' }, JWT_SECRET, { expiresIn: '1h' });\n`;
+    code += `  res.json({ token, message: 'Mock login successful' });\n`;
+    code += `});\n`;
+  }
+
+  code += `\n// CRUD Endpoints\n`;
   for (const res of resources) {
     const rName = res.name;
     const rPath = `/api/${rName}`;
@@ -79,10 +94,11 @@ export default async function generateExpress(config, resources, mockDb = null) 
     code += `app.get('${rPath}', ${authInjection}(req, res) => {\n`;
     code += `  let filteredData = [...${rName}];\n`;
     code += `  const { page, limit, ...filters } = req.query;\n`;
+    
     code += `  \n`;
-    code += `  // Filtering\n`;
+    code += `  // Query Filtering\n`;
     code += `  Object.entries(filters).forEach(([key, value]) => {\n`;
-    code += `    filteredData = filteredData.filter(item => item[key] == value);\n`;
+    code += `    filteredData = filteredData.filter(item => String(item[key]) === String(value));\n`;
     code += `  });\n`;
     code += `  \n`;
     code += `  // Pagination\n`;
@@ -101,7 +117,7 @@ export default async function generateExpress(config, resources, mockDb = null) 
     // GET by id
     code += `\n// GET ${rPath}/:id\n`;
     code += `app.get('${rPath}/:id', ${authInjection}(req, res) => {\n`;
-    code += `  const item = ${rName}.find(i => i.id === req.params.id);\n`;
+    code += `  const item = ${rName}.find(i => String(i.id) === String(req.params.id));\n`;
     code += `  if (!item) return res.status(404).json({ error: '${rName} not found' });\n`;
     code += `  res.json(item);\n`;
     code += `});\n`;
@@ -117,7 +133,7 @@ export default async function generateExpress(config, resources, mockDb = null) 
     // PUT
     code += `\n// PUT ${rPath}/:id\n`;
     code += `app.put('${rPath}/:id', ${authInjection}(req, res) => {\n`;
-    code += `  const index = ${rName}.findIndex(i => i.id === req.params.id);\n`;
+    code += `  const index = ${rName}.findIndex(i => String(i.id) === String(req.params.id));\n`;
     code += `  if (index === -1) return res.status(404).json({ error: '${rName} not found' });\n`;
     code += `  ${rName}[index] = { ...${rName}[index], ...req.body, id: ${rName}[index].id };\n`;
     code += `  res.json(${rName}[index]);\n`;
@@ -126,7 +142,7 @@ export default async function generateExpress(config, resources, mockDb = null) 
     // DELETE
     code += `\n// DELETE ${rPath}/:id\n`;
     code += `app.delete('${rPath}/:id', ${authInjection}(req, res) => {\n`;
-    code += `  const index = ${rName}.findIndex(i => i.id === req.params.id);\n`;
+    code += `  const index = ${rName}.findIndex(i => String(i.id) === String(req.params.id));\n`;
     code += `  if (index === -1) return res.status(404).json({ error: '${rName} not found' });\n`;
     code += `  const deletedItem = ${rName}.splice(index, 1)[0];\n`;
     code += `  res.json(deletedItem);\n`;

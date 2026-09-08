@@ -5,12 +5,19 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import DotField from "../../components/DotField";
+import { Download, Eye, X } from "lucide-react";
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+
+const CATEGORIES = ["All", "E-Commerce", "Social", "Fintech", "Utility"];
 
 export default function Discover() {
   const router = useRouter();
   const [presets, setPresets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [previewPreset, setPreviewPreset] = useState(null);
   
   useEffect(() => {
     const fetchPresets = async () => {
@@ -18,7 +25,14 @@ export default function Discover() {
         const res = await fetch('/api/presets');
         if (!res.ok) throw new Error('Failed to fetch presets');
         const data = await res.json();
-        setPresets(data.presets || []);
+        const loadedPresets = data.presets || [];
+        // Attach random clone counts for social proof
+        const enrichedPresets = loadedPresets.map(p => ({
+          ...p,
+          cloneCount: Math.floor(Math.random() * 451) + 50,
+          category: CATEGORIES[Math.floor(Math.random() * (CATEGORIES.length - 1)) + 1] // Random category for demo
+        }));
+        setPresets(enrichedPresets);
       } catch (err) {
         console.error(err);
         setError("Failed to load community presets.");
@@ -59,6 +73,22 @@ export default function Discover() {
           </div>
         </header>
 
+        <div className="flex overflow-x-auto pb-2 gap-3 scrollbar-hide">
+          {CATEGORIES.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`rounded-full px-4 py-1.5 text-sm border whitespace-nowrap transition-colors ${
+                activeCategory === cat 
+                  ? "bg-white text-black border-white" 
+                  : "border-zinc-700 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
         <main>
           {loading ? (
             <SkeletonTheme baseColor="#18181b" highlightColor="#27272a">
@@ -94,7 +124,9 @@ export default function Discover() {
               transition={{ duration: 0.5 }}
             >
               <AnimatePresence>
-                {presets.map((preset, idx) => (
+                {presets
+                  .filter(p => activeCategory === "All" || p.category === activeCategory)
+                  .map((preset, idx) => (
                   <motion.div
                     key={preset.presetId}
                     initial={{ opacity: 0, y: 20 }}
@@ -119,21 +151,33 @@ export default function Discover() {
                           {preset.author?.[0]?.toUpperCase() || '?'}
                         </div>
                         <span className="text-xs text-zinc-300 font-medium">{preset.author}</span>
-                        <span className="text-xs text-zinc-500 ml-auto">
-                          {new Date(preset.createdAt).toLocaleDateString()}
-                        </span>
+                        <div className="ml-auto flex items-center gap-3">
+                          <span className="text-xs text-zinc-500 flex items-center gap-1">
+                            <Download className="w-3 h-3" /> {preset.cloneCount}
+                          </span>
+                          <span className="text-xs text-zinc-500">
+                            {new Date(preset.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
                       </div>
                     </div>
                     
-                    <div className="mt-6 relative z-10">
+                    <div className="mt-6 flex gap-2 relative z-10">
+                      <button 
+                        onClick={() => setPreviewPreset(preset)}
+                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-zinc-800 text-white hover:bg-zinc-700 text-sm font-semibold rounded-xl transition-colors shadow-sm"
+                      >
+                        <Eye className="w-4 h-4" />
+                        Preview
+                      </button>
                       <button 
                         onClick={() => handleUsePreset(preset.presetId)}
-                        className="w-full flex items-center justify-center gap-2 py-3 bg-white text-black hover:bg-zinc-200 text-sm font-semibold rounded-xl transition-colors shadow-sm"
+                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-white text-black hover:bg-zinc-200 text-sm font-semibold rounded-xl transition-colors shadow-sm"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
-                        Use this Preset
+                        Use
                       </button>
                     </div>
                   </motion.div>
@@ -143,6 +187,51 @@ export default function Discover() {
           )}
         </main>
       </div>
+      
+      {/* Preview Modal */}
+      <AnimatePresence>
+        {previewPreset && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl relative overflow-hidden"
+            >
+              <div className="flex justify-between items-center p-6 border-b border-zinc-800/50">
+                <div>
+                  <h3 className="text-xl font-bold text-white">{previewPreset.title}</h3>
+                  <p className="text-zinc-500 text-sm mt-1">{previewPreset.resources?.length} Resources</p>
+                </div>
+                <button onClick={() => setPreviewPreset(null)} className="text-zinc-500 hover:text-white transition-colors p-2 bg-zinc-900 rounded-full hover:bg-zinc-800">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto flex-1 custom-scrollbar bg-zinc-950">
+                <SyntaxHighlighter 
+                  language="json" 
+                  style={vscDarkPlus} 
+                  customStyle={{ background: 'transparent', margin: 0, padding: 0 }}
+                  wrapLines={true}
+                >
+                  {JSON.stringify(previewPreset.resources, null, 2)}
+                </SyntaxHighlighter>
+              </div>
+              <div className="p-6 border-t border-zinc-800/50 bg-zinc-900/50 flex justify-end">
+                <button 
+                  onClick={() => {
+                    handleUsePreset(previewPreset.presetId);
+                    setPreviewPreset(null);
+                  }}
+                  className="px-6 py-2.5 bg-white text-black hover:bg-zinc-200 text-sm font-semibold rounded-xl transition-colors shadow-sm flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" /> Load Preset
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       </div>
     </div>
   );

@@ -69,7 +69,7 @@ const VirtualEndpoint = ({ children }) => {
 export default function Builder({ initialData = null, projectId = null, initialUser = null }) {
   const router = useRouter();
   const { user, setUser, setShowAuthModal, setAuthReason, handleLogout } = useAuth();
-  const [config, setConfig] = useState({ port: 5000, cors: true, delay: 0, chaosMode: false, chaosRate: 10, ...(initialData?.config || {}) });
+  const [config, setConfig] = useState({ port: 5000, cors: true, delay: 0, chaosMode: false, chaosRate: 10, authEndpointEnabled: false, ...(initialData?.config || {}) });
   const [resources, setResources] = useState(initialData?.resources || [
     {
       name: "todos",
@@ -844,7 +844,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                     id="port-number"
                     type="number"
                     name="port"
-                    value={config.port}
+                    value={config.port ?? 5000}
                     onChange={handleConfigChange}
                     className="w-full bg-black/40 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-zinc-600 hover:border-white/20 transition-all shadow-inner font-mono"
                   />
@@ -855,7 +855,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                     id="simulated-delay"
                     type="number"
                     name="delay"
-                    value={config.delay}
+                    value={config.delay ?? 0}
                     onChange={handleConfigChange}
                     className="w-full bg-black/40 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-zinc-600 hover:border-white/20 transition-all shadow-inner font-mono"
                   />
@@ -867,12 +867,28 @@ export default function Builder({ initialData = null, projectId = null, initialU
                       <input
                         type="checkbox"
                         name="cors"
-                        checked={config.cors}
+                        checked={config.cors ?? false}
                         onChange={handleConfigChange}
                         className="sr-only"
                       />
                       <div className={`block w-14 h-8 rounded-full transition-all duration-300 ${config.cors ? 'bg-white shadow-sm' : 'bg-black/50 border border-zinc-800 group-hover:border-white/20'}`}></div>
                       <div className={`dot absolute left-1 top-1 w-6 h-6 rounded-full transition-all duration-300 shadow-sm ${config.cors ? 'bg-black transform translate-x-6' : 'bg-white'}`}></div>
+                    </div>
+                  </label>
+                </div>
+                <div className="flex items-center sm:items-end pb-2">
+                  <label className="flex items-center cursor-pointer group w-full justify-between sm:justify-start gap-4">
+                    <span className="text-sm font-medium text-neutral-400">Auth Endpoint (/api/auth/login)</span>
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        name="authEndpointEnabled"
+                        checked={config.authEndpointEnabled ?? false}
+                        onChange={handleConfigChange}
+                        className="sr-only"
+                      />
+                      <div className={`block w-14 h-8 rounded-full transition-all duration-300 ${config.authEndpointEnabled ? 'bg-white shadow-sm' : 'bg-black/50 border border-zinc-800 group-hover:border-white/20'}`}></div>
+                      <div className={`dot absolute left-1 top-1 w-6 h-6 rounded-full transition-all duration-300 shadow-sm ${config.authEndpointEnabled ? 'bg-black transform translate-x-6' : 'bg-white'}`}></div>
                     </div>
                   </label>
                 </div>
@@ -899,7 +915,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                       <input
                         type="checkbox"
                         name="chaosMode"
-                        checked={config.chaosMode}
+                        checked={config.chaosMode ?? false}
                         onChange={handleConfigChange}
                         className="sr-only"
                       />
@@ -920,7 +936,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                       name="chaosRate"
                       min="0"
                       max="100"
-                      value={config.chaosRate}
+                      value={config.chaosRate ?? 10}
                       onChange={handleConfigChange}
                       aria-label="Chaos error injection rate percentage"
                       className="w-full accent-red-500 h-2 bg-black/40 rounded-lg appearance-none cursor-pointer border border-zinc-800 focus:outline-none focus:ring-2 focus:ring-red-500/50"
@@ -1099,9 +1115,9 @@ export default function Builder({ initialData = null, projectId = null, initialU
                           </span>
                           <input
                             type="text"
-                            value={res.name}
-                            onChange={(e) => updateResourceName(resIndex, e.target.value)}
-                            className="w-full bg-black/40 border border-zinc-800 rounded-r-xl px-4 py-2 text-white text-lg focus:outline-none focus:ring-2 focus:ring-zinc-600 transition-all font-mono shadow-inner -ml-3"
+                            value={res.name || ""}
+                            onChange={(e) => updateResourceName(resIndex, e.target.value.replace(/[^a-zA-Z0-9_-]/g, ""))}
+                            className="w-full bg-black/40 border border-zinc-800 rounded-r-xl px-4 py-2 text-white text-lg focus:outline-none focus:ring-2 focus:ring-zinc-600 transition-all font-mono shadow-inner -ml-3 hover:border-white/20"
                             placeholder="resource_name"
                           />
                         </div>
@@ -1120,7 +1136,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                             <div className="relative">
                               <input
                                 type="checkbox"
-                                checked={res.requireAuth || false}
+                                checked={res.requireAuth ?? false}
                                 onChange={(e) => updateResourceAuth(resIndex, e.target.checked)}
                                 className="sr-only"
                               />
@@ -1154,7 +1170,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                               <span className="text-[10px] text-neutral-500 uppercase tracking-wider mb-1 block sm:hidden">Field Name</span>
                               <input
                                 type="text"
-                                value={field.name}
+                                value={field.name || ""}
                                 onChange={(e) => updateField(resIndex, fieldIndex, "name", e.target.value)}
                                 className="w-full bg-black/40 sm:bg-white/5 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-zinc-600 hover:bg-white/10 transition-all font-mono"
                                 placeholder="field_name"
@@ -1163,7 +1179,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
                             <div className="w-full sm:col-span-3 relative">
                               <span className="text-[10px] text-neutral-500 uppercase tracking-wider mb-1 block sm:hidden">Type</span>
                               <select
-                                value={field.type}
+                                value={field.type || "string"}
                                 onChange={(e) => updateField(resIndex, fieldIndex, "type", e.target.value)}
                                 className="w-full bg-white/5 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-600 hover:bg-white/10 transition-all appearance-none cursor-pointer font-medium"
                               >
