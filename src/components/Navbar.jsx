@@ -161,13 +161,14 @@ export default function Navbar() {
         <div className="flex items-center gap-4">
           {user ? (
             <div className="flex items-center gap-4">
+              <Link href="/dashboard" className="text-zinc-400 hover:text-zinc-100 text-xs font-medium transition-colors">Dashboard</Link>
+              <Link href="/discover" className="text-zinc-400 hover:text-zinc-100 text-xs font-medium transition-colors">Discover</Link>
+              <div className="w-px h-4 bg-zinc-800"></div>
               <button onClick={() => setShowAccountModal(true)} className="text-sm text-zinc-300 hover:text-white font-medium flex items-center gap-2 cursor-pointer transition-colors">
-                <div className="w-2 h-2 rounded-full bg-zinc-400"></div>
+                {/* <div className="w-2 h-2 rounded-full bg-zinc-400"></div> */}
                 {user}
               </button>
-              <div className="w-px h-4 bg-zinc-800"></div>
-              <Link href="/dashboard" className="text-zinc-400 hover:text-zinc-100 text-xs font-medium transition-colors">Dashboard</Link>
-              <div className="w-px h-4 bg-zinc-800"></div>
+              {/* <div className="w-px h-4 bg-zinc-800"></div> */}
               <button onClick={handleLogout} className="text-zinc-400 hover:text-zinc-100 text-xs font-medium transition-colors">Logout</button>
             </div>
           ) : (

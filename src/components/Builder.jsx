@@ -514,8 +514,8 @@ export default function Builder({ initialData = null, projectId = null, initialU
         <div className="flex flex-wrap justify-center gap-3">
           <div className="relative">
             <div onClick={() => setShowDownloadMenu(!showDownloadMenu)} className="cursor-pointer">
-              <SpecularButton size="sm" className="!py-1.5 !px-3 !rounded-lg text-xs" autoAnimate>
-                <span className="flex items-center gap-2" aria-label="Download options">
+              <SpecularButton size="sm" className="!py-1.5 !px-3 !rounded-lg text-xs" autoAnimate aria-label="Download options">
+                <span className="flex items-center gap-2">
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
@@ -586,8 +586,8 @@ export default function Builder({ initialData = null, projectId = null, initialU
               )}
             </SpecularButton>
           </div>
-          <div onClick={() => setIsFullscreen(!isFullscreen)} className="cursor-pointer" role="button" aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}>
-            <SpecularButton size="sm" className="!py-1.5 !px-3 !rounded-lg text-xs" autoAnimate>
+          <div onClick={() => setIsFullscreen(!isFullscreen)} className="cursor-pointer">
+            <SpecularButton size="sm" className="!py-1.5 !px-3 !rounded-lg text-xs" autoAnimate aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}>
               <span className="flex items-center gap-2">
                 {isFullscreen ? (
                   <>

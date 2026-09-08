@@ -2,7 +2,7 @@ import { kv } from '@vercel/kv';
 import Builder from '../../../components/Builder';
 import { notFound } from 'next/navigation';
 import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
+import { verifyToken } from "../../../lib/auth";
 
 export default async function ProjectPage({ params }) {
   const { projectId } = await params;
@@ -18,8 +18,10 @@ export default async function ProjectPage({ params }) {
     const cookieStore = await cookies();
     const token = cookieStore.get('token')?.value;
     if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      initialUser = decoded.username || null;
+      const decoded = verifyToken(token);
+      if (decoded) {
+        initialUser = decoded.username || null;
+      }
     }
   } catch (e) {
     console.error("Token verification failed", e);

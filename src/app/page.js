@@ -1,6 +1,6 @@
 import Builder from "../components/Builder";
 import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
+import { verifyToken } from "../lib/auth";
 import { Suspense } from "react";
 
 export default async function Home() {
@@ -9,8 +9,10 @@ export default async function Home() {
     const cookieStore = await cookies();
     const token = cookieStore.get('token')?.value;
     if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      initialUser = decoded.username || null;
+      const decoded = verifyToken(token);
+      if (decoded) {
+        initialUser = decoded.username || null;
+      }
     }
   } catch (e) {
     console.error("Token verification failed", e);

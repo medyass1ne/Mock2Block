@@ -20,35 +20,45 @@ const getRelativeTime = (date) => {
   return rtf.format(deltaMinutes, 'minute');
 };
 
-export default function Dashboard({ initialUser = null }) {
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function Dashboard({ initialUser = null, initialProjects = null }) {
+  const [projects, setProjects] = useState(initialProjects || []);
+  const [loading, setLoading] = useState(!initialProjects);
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [toast, setToast] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
+    if (initialProjects) return;
+
     const fetchProjects = async () => {
       try {
         const res = await fetch("/api/projects");
-        if (res.ok) {
-          const data = await res.json();
-          setProjects(data.projects);
-        } else {
-          router.push("/");
+        if (res.status === 401) {
+          setProjects([]);
+          setLoading(false);
+          return;
         }
-      } catch (e) {
-        router.push("/");
+        if (!res.ok) {
+          setProjects([]);
+          setLoading(false);
+          return;
+        }
+        const data = await res.json();
+        setProjects(data.projects || []);
+      } catch (err) {
+        setProjects([]);
       } finally {
         setLoading(false);
       }
     };
     fetchProjects();
-    
+  }, [initialProjects]);
+
+  useEffect(() => {
     const handleClickOutside = () => setOpenDropdownId(null);
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
-  }, [router]);
+  }, []);
 
   const showToast = (msg) => {
     setToast(msg);
@@ -133,7 +143,9 @@ export default function Dashboard({ initialUser = null }) {
       <div className="max-w-[1400px] mx-auto space-y-8 mt-6">
         <div className="space-y-6 relative">
           <div className="flex justify-between items-center mb-2">
-            <h2 className="text-3xl font-extrabold text-zinc-100 tracking-tight">My Projects</h2>
+            <h1 className="text-4xl mb-4 md:text-5xl font-extrabold tracking-tight text-zinc-100">
+              My Projects
+            </h1>
             <AnimatePresence>
               {toast && (
                 <motion.div 
@@ -179,8 +191,9 @@ export default function Dashboard({ initialUser = null }) {
                               setOpenDropdownId(openDropdownId === p.projectId ? null : p.projectId); 
                             }}
                             className="text-zinc-500 hover:text-white transition-colors"
+                            aria-label="Open project options"
                           >
-                            <MoreVertical className="w-5 h-5 cursor-pointer" />
+                            <MoreVertical className="w-5 h-5 cursor-pointer" aria-hidden="true" />
                           </button>
                           <AnimatePresence>
                             {openDropdownId === p.projectId && (
@@ -190,15 +203,15 @@ export default function Dashboard({ initialUser = null }) {
                                 exit={{ opacity: 0, scale: 0.95 }}
                                 className="absolute right-0 top-6 w-40 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden"
                               >
-                                <button onClick={(e) => handleDuplicate(e, p)} className="w-full text-left px-4 py-2.5 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors flex items-center gap-2">
-                                  <CopyPlus className="w-3.5 h-3.5" /> Duplicate
+                                <button onClick={(e) => handleDuplicate(e, p)} className="w-full text-left px-4 py-2.5 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors flex items-center gap-2" aria-label="Duplicate project">
+                                  <CopyPlus className="w-3.5 h-3.5" aria-hidden="true" /> Duplicate
                                 </button>
-                                <button onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); exportToOpenAPI(p.config, p.resources); }} className="w-full text-left px-4 py-2.5 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors flex items-center gap-2">
-                                  <Download className="w-3.5 h-3.5" /> Export OpenAPI
+                                <button onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); exportToOpenAPI(p.config, p.resources); }} className="w-full text-left px-4 py-2.5 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors flex items-center gap-2" aria-label="Export OpenAPI">
+                                  <Download className="w-3.5 h-3.5" aria-hidden="true" /> Export OpenAPI
                                 </button>
                                 <div className="h-px w-full bg-zinc-800/50"></div>
-                                <button onClick={(e) => handleDelete(e, p.projectId)} className="w-full text-left px-4 py-2.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors flex items-center gap-2">
-                                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                                <button onClick={(e) => handleDelete(e, p.projectId)} className="w-full text-left px-4 py-2.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors flex items-center gap-2" aria-label="Delete project">
+                                  <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> Delete
                                 </button>
                               </motion.div>
                             )}
@@ -219,12 +232,14 @@ export default function Dashboard({ initialUser = null }) {
                     <button 
                       onClick={(e) => copyUrl(e, p.projectId)}
                       className="px-3 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-sm font-medium rounded-xl border border-zinc-700 transition-colors flex items-center justify-center gap-2 flex-shrink-0"
+                      aria-label="Copy API URL"
                     >
                       <Copy className="w-4 h-4" />
                     </button>
                     <Link 
                       href={`/projects/${p.projectId}`}
                       className="flex-1 text-center px-4 py-2.5 bg-white text-black hover:bg-zinc-200 text-sm font-semibold rounded-xl transition-colors"
+                      aria-label="Open Builder"
                     >
                       Open Builder
                     </Link>
