@@ -504,7 +504,10 @@ export default function Builder({ initialData = null, projectId = null, initialU
   ), [generatedCode]);
 
   const renderCodePreview = (isOverlay = false) => (
-    <div className={`flex-none xl:flex-1 bg-[#09090b] border border-zinc-800 ${isOverlay ? 'rounded-2xl h-full' : 'rounded-3xl'} overflow-hidden shadow-2xl flex flex-col relative group transition-all duration-300 h-[70vh] min-h-[400px] xl:h-auto`}>
+    <motion.div 
+      layoutId="preview-box"
+      className={`flex-none xl:flex-1 bg-[#09090b] border border-zinc-800 ${isOverlay ? 'rounded-2xl h-full' : 'rounded-3xl'} overflow-hidden shadow-2xl flex flex-col relative group ${!isOverlay ? 'h-[70vh] min-h-[400px] xl:h-auto' : ''}`}
+    >
       <div className="absolute inset-0 bg-gradient-to-b from-zinc-900/50 to-transparent pointer-events-none"></div>
       
       <div className={`bg-zinc-900/50 px-4 sm:px-5 py-4 border-b border-zinc-800 flex ${isFullscreen ? "flex-row-reverse" : "flex-col"} gap-4 items-center justify-between backdrop-blur-md relative z-20`}>
@@ -662,7 +665,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
           <MermaidDiagram chartString={generateERDiagram(resources)} />
         )}
       </div>
-    </div>
+    </motion.div>
   );
 
   return (
@@ -766,11 +769,19 @@ export default function Builder({ initialData = null, projectId = null, initialU
         </div>
       )}
 
-      {isFullscreen && (
-        <div className="fixed inset-0 z-[100] p-4 sm:p-8 bg-black/90 backdrop-blur-md flex flex-col">
-          {renderCodePreview(true)}
-        </div>
-      )}
+      <AnimatePresence>
+        {isFullscreen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[100] p-4 sm:p-8 bg-black/90 backdrop-blur-md flex flex-col"
+          >
+            {renderCodePreview(true)}
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="relative min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-zinc-800">
         
         {/* New Premium Navbar */}
