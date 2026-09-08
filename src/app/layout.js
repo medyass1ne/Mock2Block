@@ -1,5 +1,10 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "react-loading-skeleton/dist/skeleton.css";
+import { AuthProvider } from "../context/AuthContext";
+import Navbar from "../components/Navbar";
+import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -63,13 +68,30 @@ export const metadata = {
   },
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  let initialUser = null;
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('token')?.value;
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      initialUser = decoded.username || null;
+    }
+  } catch (e) {
+    console.error("Token verification failed", e);
+  }
+
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col bg-zinc-950">
+        <AuthProvider initialUser={initialUser}>
+          <Navbar />
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   );
 }
