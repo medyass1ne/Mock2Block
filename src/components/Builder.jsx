@@ -507,7 +507,7 @@ export default function Builder({ initialData = null, projectId = null, initialU
     <div className={`flex-none xl:flex-1 bg-[#09090b] border border-zinc-800 ${isOverlay ? 'rounded-2xl h-full' : 'rounded-3xl'} overflow-hidden shadow-2xl flex flex-col relative group transition-all duration-300 h-[70vh] min-h-[400px] xl:h-auto`}>
       <div className="absolute inset-0 bg-gradient-to-b from-zinc-900/50 to-transparent pointer-events-none"></div>
       
-      <div className="bg-zinc-900/50 px-4 sm:px-5 py-4 border-b border-zinc-800 flex flex-col gap-4 items-center justify-between backdrop-blur-md relative z-20">
+      <div className={`bg-zinc-900/50 px-4 sm:px-5 py-4 border-b border-zinc-800 flex ${isFullscreen ? "flex-row-reverse" : "flex-col"} gap-4 items-center justify-between backdrop-blur-md relative z-20`}>
         <div className="flex flex-wrap justify-center gap-3">
           <div className="relative">
             <div onClick={() => setShowDownloadMenu(!showDownloadMenu)} className="cursor-pointer">
